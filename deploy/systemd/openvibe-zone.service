@@ -1,0 +1,30 @@
+[Unit]
+Description=OpenVibe.Zone — private S3-compatible storage zones for OpenVibe projects.
+# Network (sign-in, JWKS) should be up first, but OpenVibe.Zone degrades honestly without it: the pages and the API's
+# public routes serve; sign-in and the guarded routes wait for the signing key (see /api/ready).
+After=network.target postgresql.service pgbouncer.service valkey-server.service
+Wants=openvibe-network.service postgresql.service pgbouncer.service valkey-server.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/openvibe.zone
+EnvironmentFile=/etc/openvibe/zone.env
+Environment=NODE_ENV=production
+Environment=PORT=5050
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/env node /opt/openvibe.zone/server/index.js
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+# In-flight requests get the 10 s drain.
+TimeoutStopSec=15
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# OpenVibe.Zone's own database is PostgreSQL on the host's data role; the code tree stays read-only.
+
+[Install]
+WantedBy=multi-user.target
