@@ -48,7 +48,7 @@ const plural = (n, one, many) => `${Number(n).toLocaleString('en-US')} ${n === 1
 const day = (iso) => (iso ? String(iso).slice(0, 10) : '—');
 
 function createPageRoutes(ctx) {
-    const { config, clients, zones } = ctx;
+    const { config, clients, zones, usage: metering } = ctx;
     const r = asyncRouter();
     const form = express.urlencoded({ extended: false, limit: '8kb' });
     const PUBLIC_CACHE = cache.htmlHeaders({ maxAge: 300 });
@@ -144,10 +144,21 @@ ${projects.length ? html`<ul class="zn-cards">${projects.map((p) => html`<li cla
         for (const env of envs) await zones.ensureDefault(project, env);
         const list = (await zones.list(project, {})).zones;
         const usage = new Map();
+        const metered = new Map();
+        const monthStart = (() => { const d = new Date(); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1); })();
         await Promise.all(list.filter((z) => z.state !== 'deleted').map(async (z) => {
             const rep = await clients.report(z.id).catch(() => null);
             if (rep) usage.set(z.id, rep);
+            if (metering) metered.set(z.id, (await metering.series(z.id, { from: monthStart }).catch(() => ({ series: [] }))).series);
         }));
+        // This month's requests and egress, as Media reported them by the hour (media.usage.recorded).
+        const monthLine = (id) => {
+            const list = metered.get(id) || [];
+            const sum = (pred) => list.filter(pred).reduce((n, x) => n + x.quantity, 0);
+            const requests = sum((x) => x.unit === 'requests');
+            const egress = sum((x) => x.unit === 'egress_bytes');
+            return requests || egress ? `this month: ${plural(requests, 'request', 'requests')} · ${bytes(egress)} out` : '';
+        };
         let keys = [];
         let keysError = null;
         if (admin) { try { keys = await clients.listKeys(project, me.subject); } catch (err) { keysError = err.message; } }
@@ -155,7 +166,7 @@ ${projects.length ? html`<ul class="zn-cards">${projects.map((p) => html`<li cla
             const rep = usage.get(z.id);
             const u = rep && rep.usage;
             return html`<tr id="${z.id}"><td><code>${z.name}</code>${z.default ? html` <span class="zn-badge">default</span>` : ''}</td><td>${z.state}</td>
-<td class="zn-n">${u ? `${bytes(u.stored_bytes)} · ${plural(u.objects, 'object', 'objects')}` : '—'}</td>
+<td class="zn-n">${u ? `${bytes(u.stored_bytes)} · ${plural(u.objects, 'object', 'objects')}` : '—'}${monthLine(z.id) ? html`<br><span class="zn-muted">${monthLine(z.id)}</span>` : ''}</td>
 <td class="zn-n">${z.quota_bytes ? bytes(z.quota_bytes) : (z.default ? 'environment' : '—')}</td><td>${day(z.created_at)}</td>
 <td>${admin && !z.default && z.state === 'active' ? html`<details><summary>Delete</summary><form method="post" action="/p/${project}/zones/${z.id}/delete">
 <p>This deletes every object in <code>${z.name}</code>, with no undo, and the name can never be used again.</p>
@@ -289,7 +300,7 @@ ${keysSection}
 <li><code>GET /zones/:zone_id</code> (<code>zone.zone.read</code>): the zone with its stored bytes and objects.</li>
 <li><code>PATCH /zones/:zone_id</code> (<code>zone.zone.manage</code>): <code>{ description?, quota_bytes? }</code>.</li>
 <li><code>DELETE /zones/:zone_id?recursive=true</code> (<code>zone.zone.delete</code>). Without <code>recursive</code>, a zone that still holds objects answers <code>zone.not_empty</code>. A zone holding an object under a retention hold answers <code>zone.held</code>.</li>
-<li><code>GET /zones/:zone_id/usage</code> (<code>zone.usage.read</code>).</li>
+<li><code>GET /zones/:zone_id/usage</code> (<code>zone.usage.read</code>): Media's live snapshot, and this month's metered series (requests, egress, byte-hours) as Media reports each closed hour.</li>
 </ul>
 <p>The objects of a zone are OpenVibe.Media objects. Media's own API (<code>/api/v2/:project_id/objects</code>, with <code>namespace</code> set to the zone's id) reads and writes the same objects.</p>`,
     }));

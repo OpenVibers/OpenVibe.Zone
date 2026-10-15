@@ -26,6 +26,8 @@ const { createKeyStore } = require('./auth/keys');
 const { createSso } = require('./auth/sso');
 const { createPrincipal } = require('./http/principal');
 const { createApi } = require('./http/api');
+const { createUsage } = require('./zone/usage');
+const { eventsIntake } = require('./http/events');
 const { createPageRoutes } = require('./http/pages');
 const { createServiceReadiness } = require('./observability');
 const { createCallerLimits } = require('./http/caller-limits');
@@ -51,8 +53,9 @@ async function createApp(opts = {}) {
     const sso = createSso({ config, keys, fetchImpl, now: s.now, log });
     const principal = createPrincipal({ config, keys });
     const clients = opts.clients || createClients({ config, fetchImpl });
-    const zones = createZones({ s, clients, config, log });
-    const ctx = { config, s, keys, sso, principal, log, clients, zones };
+    const usage = createUsage({ s, log });
+    const zones = createZones({ s, clients, config, log, metering: usage });
+    const ctx = { config, s, keys, sso, principal, log, clients, zones, usage };
 
     const app = express();
     app.disable('x-powered-by');
@@ -90,6 +93,10 @@ async function createApp(opts = {}) {
         referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
     }));
     app.use(cookieParser());
+
+    // ── OpenVibe.Events → Zone (loopback only: nginx answers 404 for /internal/) ──
+    // media.usage.recorded: Media's hourly rollups of each zone, kept for the usage view (server/zone/usage.js).
+    app.post('/internal/events', eventsIntake({ secrets: config.events.secrets, usage, log }));
 
     // ── Machine endpoints ───────────────────────────────────
     app.get('/api/health', (_req, res) => res.json({ status: 'ok', service: 'openvibe-zone', version: VERSION }));

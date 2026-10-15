@@ -28,7 +28,7 @@ class ZoneError extends Error {
 const fail = (status, code, detail) => { throw new ZoneError(status, code, detail); };
 const iso = (ms) => (ms == null ? null : new Date(Number(ms)).toISOString());
 
-function createZones({ s, clients, config, log = console }) {
+function createZones({ s, clients, config, log = console, metering = null }) {
     const { db } = s;
 
     /** The zone.object-zone@1 of a row (usage when given; deletion progress while it is deleting or deleted). */
@@ -198,15 +198,19 @@ function createZones({ s, clients, config, log = console }) {
         const now = new Date(s.now());
         const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
         const current = rep && rep.usage ? rep.usage : { stored_bytes: 0, objects: 0, as_of: now.toISOString() };
+        // The series sums Media's hourly rollups (media.usage.recorded) of this month; window_end is the end of the
+        // last hour Media reported (the month's start when none has arrived yet).
+        const metered = metering ? await metering.series(row.id, { from: start.getTime() }) : { series: [], reportedUntil: null };
         const out = {
             zone_id: row.id, ovrn: contracts.zones.identity({ ...row, default: row.is_default }).ovrn,
             current: { stored_bytes: current.stored_bytes, objects: current.objects, as_of: current.as_of },
-            window_start: start.toISOString(), window_end: now.toISOString(), series: [],
+            window_start: start.toISOString(), window_end: new Date(metered.reportedUntil || start.getTime()).toISOString(), series: metered.series,
         };
         return out;
     }
 
     let ticking = false;
+    let lastPrune = 0;
     async function tick() {
         if (ticking) return { pushed: 0, deleted: 0 };
         ticking = true;
@@ -224,6 +228,7 @@ function createZones({ s, clients, config, log = console }) {
                     }
                 }
             }
+            if (metering && s.now() - lastPrune > 3600 * 1000) { lastPrune = s.now(); await metering.prune(); }
         } finally { ticking = false; }
         return { pushed, deleted };
     }
