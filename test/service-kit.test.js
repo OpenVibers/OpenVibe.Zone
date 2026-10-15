@@ -16,6 +16,7 @@ const listen = (server) => new Promise((resolve) => server.listen(0, '127.0.0.1'
         const steps = [];
         const ctx = {
             keys: { client: { stop: () => { steps.push('keys.stop'); } } },
+            telemetry: { stop: async () => { steps.push('telemetry.stop'); } },
             s: { close: async () => { steps.push('store.close'); } },
         };
         const server = http.createServer((req, res) => res.end('ok'));
@@ -28,7 +29,7 @@ const listen = (server) => new Promise((resolve) => server.listen(0, '127.0.0.1'
 
         assert.strictEqual(code, 0);
         assert.deepStrictEqual(exits, [0]);
-        assert.deepStrictEqual(steps, ['keys.stop', 'store.close']);
+        assert.deepStrictEqual(steps, ['keys.stop', 'telemetry.stop', 'store.close']);
         assert.strictEqual(server.listening, false);
     });
 
