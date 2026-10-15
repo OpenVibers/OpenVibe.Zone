@@ -101,6 +101,7 @@ npm run dev
 - Unit `openvibe-zone.service` on 127.0.0.1:5050, database `ov_zone`, env `/etc/openvibe/zone.env` (with `EVENTS_URL` and `ZONE_EVENTS_SECRET` for the usage subscription).
 - nginx vhost `deploy/nginx/openvibe.zone.conf`, on openvibe.zone's own certificate.
 - `sudo ovhost deploy zone`; migrations run at boot.
+- Telemetry: each HTTP request is counted by route template, method and status class, never by raw URL; `/shared`, static assets, health, readiness and `/metrics` are not counted. `server/app.js` builds the collector (`createHttpTelemetry`) and mounts its middleware; `server/index.js` flushes one `http.request` sample per key per minute, plus the active-requests, p95 latency and event-loop-lag gauges, to `telemetry_samples` (openvibe-sdk 0.46, `platform.telemetry-sample@1`), deletes rows older than 14 days daily, and flushes on stop. Created by `migrations/0003_telemetry.sql`.
 
 ## Layout
 
