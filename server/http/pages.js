@@ -280,7 +280,8 @@ ${keysSection}
     <li>presigned GET and PUT URLs, valid for 7 days at most.</li>
   </ul></li>
 <li><strong>Multipart uploads:</strong> CreateMultipartUpload, UploadPart, CompleteMultipartUpload, AbortMultipartUpload, ListParts and ListMultipartUploads, with S3's rules (every part but the last at least 5 MiB). An unfinished upload expires after a day.</li>
-<li><strong>Not yet supported:</strong> CopyObject, UploadPartCopy, ACLs, policies and versioning.</li>
+<li><strong>Server-side copies:</strong> CopyObject and UploadPartCopy, within a zone or from another zone of the same environment the key may read, so <code>aws s3 cp s3://a/x s3://b/x</code> and rclone's server-side moves never download the bytes.</li>
+<li><strong>Not supported:</strong> ACLs and bucket policies (zones are private; access is the key's), versioning (a zone keeps the current object), and deleting a zone over S3 (do that here).</li>
 <li><strong>Size:</strong> one request carries at most 100 MB through this endpoint, so larger files go up in parts (the AWS CLI, the SDKs and rclone do this by default); an object is at most 20 GB.</li>
 <li><strong>Privacy:</strong> zones are private. Every request is signed. A presigned URL reaches only its own key, until it expires or its key is revoked.</li>
 </ul>
