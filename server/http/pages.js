@@ -95,7 +95,7 @@ aws --endpoint-url ${s3} s3 ls s3://assets/</code></pre>
 <pre class="zn-code"><code>rclone config create oz s3 provider Other endpoint ${s3} \\
   access_key_id ovk_… secret_access_key … no_check_bucket true
 rclone sync ./backups oz:backups</code></pre>
-<p class="zn-muted">Objects go up in one request (multipart uploads are not supported yet), up to 100 MB each.</p>
+<p class="zn-muted">Large files go up in parts, as these tools do by default: each part up to 100 MB, an object up to 20 GB.</p>
 </section>
 <section class="zn-section" aria-labelledby="zn-what"><h2 id="zn-what">What a zone gives you</h2>
 <ul class="zn-list">
@@ -268,8 +268,9 @@ ${keysSection}
     <li>listing: ListObjectsV2 and ListObjects (prefix, delimiter, pages), ListBuckets, HeadBucket;</li>
     <li>presigned GET and PUT URLs, valid for 7 days at most.</li>
   </ul></li>
-<li><strong>Not yet supported:</strong> multipart uploads, CopyObject, ACLs, policies and versioning. Set your tool to upload in one request (AWS CLI: <code>aws configure set default.s3.multipart_threshold 100MB</code>; rclone: <code>upload_cutoff 100M</code>).</li>
-<li><strong>Size:</strong> one object is at most 100 MB through this endpoint.</li>
+<li><strong>Multipart uploads:</strong> CreateMultipartUpload, UploadPart, CompleteMultipartUpload, AbortMultipartUpload, ListParts and ListMultipartUploads, with S3's rules (every part but the last at least 5 MiB). An unfinished upload expires after a day.</li>
+<li><strong>Not yet supported:</strong> CopyObject, UploadPartCopy, ACLs, policies and versioning.</li>
+<li><strong>Size:</strong> one request carries at most 100 MB through this endpoint, so larger files go up in parts (the AWS CLI, the SDKs and rclone do this by default); an object is at most 20 GB.</li>
 <li><strong>Privacy:</strong> zones are private. Every request is signed. A presigned URL reaches only its own key, until it expires or its key is revoked.</li>
 </ul>
 <h2 id="keys">Access keys</h2>
