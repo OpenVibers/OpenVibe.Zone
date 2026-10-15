@@ -1,15 +1,22 @@
 # OpenVibe.Zone
 
+## Purpose
+
 Private S3-compatible storage zones for OpenVibe projects, at https://openvibe.zone. The design is ADR-031 in
-OpenVibe.Contracts, with its amendment of 2026-10-02.
+OpenVibe.Contracts, with its amendments of 2026-10-02 and 2026-10-14.
 
 A **zone** is a named object zone of one project environment, sandbox or production. Any S3 tool reaches it as a
-bucket at `https://s3.openvibe.media`, path style.
+bucket at `https://s3.openvibe.media`, path style (`https://s3.openvibe.network` until that name's DNS record exists).
 
-**Zone owns** the zone record:
+## Owns
+
+The zone record:
 - its name, which is never reused;
 - its environment, state, description and per-zone quota;
-- the control API and the console.
+- the control API and the console;
+- its metered usage as Media reports it (`zone_usage`).
+
+## Does not own
 
 **OpenVibe.Media owns** everything inside a zone:
 - the objects, their bytes and replicas;
@@ -17,12 +24,14 @@ bucket at `https://s3.openvibe.media`, path style.
 - the access keys;
 - quota enforcement, usage counting and the one deletion path.
 
-Zone never lists keys and never holds bytes.
+Zone never lists keys, never holds bytes and never counts.
 
-**Usage.** Zone never counts. Media sends each zone's closed hours as `media.usage.recorded`: requests by capability,
-read egress, and stored bytes as byte-hours. Zone keeps them (`zone_usage`, delivered signed to `POST /internal/events`,
-loopback only). `GET /zones/:zone_id/usage` sums the current UTC month beside Media's live snapshot, and the console
-shows each zone's requests and egress so far this month.
+## Depends on
+
+- **OpenVibe.Media:** provisioning (`PUT /internal/zones/:id`), each zone's report (usage snapshot, deletion progress) and the access keys, on loopback with Zone's own service token.
+- **OpenVibe.Network:** sign-in for the console (OAuth with PKCE), a person's projects and roles, and the keys that verify tokens.
+- **OpenVibe.Events:** Media's hourly rollups, `media.usage.recorded`, delivered to `POST /internal/events` (subscription made at boot).
+- **OpenVibe.Services:** reads the resource index and sends control requests.
 
 ## What it does
 
@@ -38,11 +47,12 @@ shows each zone's requests and egress so far this month.
   - When Media reports nothing left, the job marks the zone `deleted`.
   - Media revokes keys scoped only to that zone.
 - **Access keys.** The console issues, lists and revokes S3 keys through Media's API (`media.access_key.manage`), for a person who administers the project. A secret is shown once, on the page that issued it.
+- **Usage.** Media sends each zone's closed hours as `media.usage.recorded`: requests by capability, read egress, and stored bytes as byte-hours. Zone keeps them; `GET /zones/:zone_id/usage` sums the current UTC month beside Media's live snapshot, and the console shows each zone's requests and egress so far this month.
 - **Services.** OpenVibe.Services reaches Zone through two first-party routes:
   - the resource index, `GET /api/v1/resources` (`zone.resource.read`);
   - control, `POST /api/v1/resources/control` (`zone.resource.control`, action `delete`).
 
-## API
+## Capabilities and API
 
 Base `https://openvibe.zone/api/v1`. A caller is either:
 - a developer app of the project, with the route's capability for audience `openvibe.zone` (a sandbox app reaches only the sandbox), or
@@ -59,7 +69,19 @@ Base `https://openvibe.zone/api/v1`. A caller is either:
 | `GET /resources`, `GET /resources/:ovrn` | `zone.resource.read` (first-party) |
 | `POST /resources/control` | `zone.resource.control` (first-party) |
 
-## Run
+**Grants Zone holds:**
+- `media.zone.provision` and `media.access_key.manage` (audience `openvibe.media`);
+- `network.project.member.read`;
+- `events.subscription.manage` (its `media.usage.recorded` subscription).
+
+## Security
+
+- **Secrets:** an access key's secret is shown once and never stored here (Media keeps it encrypted).
+- **Console:** every change is a same-origin form, and only a project's admins and owners change zones and keys.
+- **`/internal/`:** answers only on loopback, and nginx answers 404 for it. Deliveries must carry a valid v2 signature (`ZONE_EVENTS_SECRET`), and a request through a proxy is refused.
+- **Edge caching:** Media's S3 answers are `private, no-store`, with CDN no-store as well, so no edge keeps them.
+
+## Tests
 
 ```sh
 npm ci
@@ -67,21 +89,27 @@ npm test            # PGlite; npm run test:pg on the PostgreSQL containers
 npm run dev
 ```
 
-**Production:**
-- unit `openvibe-zone.service` on 127.0.0.1:5050, database `ov_zone`, env `/etc/openvibe/zone.env`;
-- nginx vhost `deploy/nginx/openvibe.zone.conf` on openvibe.zone's own certificate;
-- deployed with `sudo ovhost deploy zone`.
+`test/zone-api.test.js` runs against a mock Network and a fake Media. It covers:
+- default zones, idempotent creation, retired names and provisioning by revision;
+- app tokens, roles, updates and deletion;
+- the resource index and control;
+- the console;
+- Media's signed usage rollups.
 
-**Grants it needs:**
-- `media.zone.provision` and `media.access_key.manage` (audience `openvibe.media`);
-- `network.project.member.read`.
+## Deploy
+
+- Unit `openvibe-zone.service` on 127.0.0.1:5050, database `ov_zone`, env `/etc/openvibe/zone.env` (with `EVENTS_URL` and `ZONE_EVENTS_SECRET` for the usage subscription).
+- nginx vhost `deploy/nginx/openvibe.zone.conf`, on openvibe.zone's own certificate.
+- `sudo ovhost deploy zone`; migrations run at boot.
 
 ## Layout
 
 ```
 server/zone/zones.js     zone records, names, revisions, provisioning, deletion, the job
+server/zone/usage.js     Media's hourly rollups, kept and summed
 server/zone/clients.js   Media (provision, report, keys) and Network (roles, a person's projects)
 server/http/api.js       /api/v1
+server/http/events.js    POST /internal/events (v2-signed deliveries, loopback only)
 server/http/pages.js     the console and docs; discovery.js robots.txt, sitemap.xml, llms.txt
 migrations/              the schema
 ```
