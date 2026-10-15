@@ -77,6 +77,7 @@ function createPageRoutes(ctx) {
         });
         page(req, res, {
             index: true, cache: me ? null : PUBLIC_CACHE, jsonLd: homeJsonLd(config), styles: [showcase.STYLESHEET],
+            description: 'Private S3 buckets for your OpenVibe projects: create zones, issue access keys scoped to them, and use the AWS SDKs, rclone or any S3 tool.',
             body: html`${raw(hero)}
 ${raw(showcase.steps({
                 title: 'From nothing to a bucket',
@@ -309,6 +310,7 @@ ${keysSection}
     r.get('/updates', (req, res) => page(req, res, {
         index: true, cache: PUBLIC_CACHE,
         title: `What shipped on ${SITE_NAME}`,
+        description: 'Every change deployed to OpenVibe.Zone, newest first, from the OpenVibe network\'s shared update log.',
         body: raw(frame.updatesBody({ service: 'zone', siteName: SITE_NAME }) + `<script src="${ovServe.url('shipped.js')}" defer></script>`),
     }));
 
