@@ -7,11 +7,11 @@
   "runtime": "node 22, express 4, PostgreSQL 18 (openvibe-sdk/db, async) + Valkey 9",
   "port": 5050,
   "domain": "openvibe.zone",
-  "contracts": "openvibe-contracts v0.173.0",
+  "contracts": "openvibe-contracts v0.175.0",
   "sdk": "openvibe-sdk v0.44.0",
   "shared": "openvibe-shared v4.1.4",
   "packages": [
-    "openvibe-contracts v0.173.0",
+    "openvibe-contracts v0.175.0",
     "openvibe-sdk v0.44.0",
     "openvibe-shared v4.1.4"
   ],
@@ -42,5 +42,5 @@
     "Resource index and control (delete) for OpenVibe.Services"
   ],
   "deployment": "openvibe-ovh: unit openvibe-zone.service on 127.0.0.1:5050 (git checkout /opt/openvibe.zone, env /etc/openvibe/zone.env, database ov_zone)",
-  "updated": "2026-10-14"
+  "updated": "2026-10-15"
 }
