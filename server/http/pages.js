@@ -88,11 +88,11 @@ ${raw(showcase.steps({
                 ],
             }))}
 <section class="zn-section" aria-labelledby="zn-try"><h2 id="zn-try">With the tools you have</h2>
-<pre class="zn-code"><code>aws configure set aws_access_key_id ovk_…
+<pre tabindex="0" class="zn-code"><code>aws configure set aws_access_key_id ovk_…
 aws configure set aws_secret_access_key …
 aws --endpoint-url ${s3} s3 cp ./site s3://assets/ --recursive
 aws --endpoint-url ${s3} s3 ls s3://assets/</code></pre>
-<pre class="zn-code"><code>rclone config create oz s3 provider Other endpoint ${s3} \\
+<pre tabindex="0" class="zn-code"><code>rclone config create oz s3 provider Other endpoint ${s3} \\
   access_key_id ovk_… secret_access_key … no_check_bucket true
 rclone sync ./backups oz:backups</code></pre>
 <p class="zn-muted">Large files go up in parts, as these tools do by default: each part up to 100 MB, an object up to 20 GB.</p>

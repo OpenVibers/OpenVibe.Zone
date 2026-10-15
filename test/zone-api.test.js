@@ -267,6 +267,7 @@ function fakeMedia(network) {
         assert.strictEqual(r.status, 401);
         r = await t.get('/');
         assert.ok(r.status === 200 && r.text.includes('s3.openvibe.media') && r.text.includes('Private storage zones'));
+        assert.ok(!/<pre(?![^>]*tabindex)[\s>]/.test(r.text), 'every <pre> is focusable (axe scrollable-region-focusable)');
         r = await t.get('/docs');
         assert.ok(r.status === 200 && r.text.includes('zone.zone.create'));
         // The S3 list matches Media's surface: copies are supported (Media#113); ACLs, policies and versioning are not.
