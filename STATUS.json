@@ -27,7 +27,7 @@
   "notYet": [
     "Per-zone usage series (Media's hourly rollups with the zone's resource name)",
     "api.openvibe.zone and s3.openvibe.media DNS records (owner)",
-    "Multipart uploads and CopyObject on Media's S3 surface"
+    "CopyObject and UploadPartCopy on Media's S3 surface"
   ],
   "capabilitiesRegistered": true,
   "serviceManifestRegistered": true,
