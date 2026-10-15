@@ -35,6 +35,8 @@ const BOOST = /<script src="\/shared\/boost\.js\?v=[0-9a-f]{12}" data-main="#mai
 
     await check('the home page head comes from openvibe-shared/shell with the same title, canonical, robots and JSON-LD', async () => {
         const r = await t.get('/');
+        // The home's meta description is a sentence for search results (50-160 characters), not "Name — tagline".
+        { const d = (/<meta name="description" content="([^"]*)"/.exec(r.text) || [])[1] || ''; assert.ok(d.length >= 50 && d.length <= 160 && !d.includes(' — '), `home description: ${d}`); }
         assert.strictEqual(r.status, 200);
         const head = r.text.slice(0, r.text.indexOf('</head>'));
         assert.strictEqual((r.text.match(/<title>/g) || []).length, 1, 'exactly one <title>');
