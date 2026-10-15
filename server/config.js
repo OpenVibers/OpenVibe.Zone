@@ -60,6 +60,13 @@ function load(env = process.env) {
             internalUrl: trim(env.MEDIA_INTERNAL_URL || 'http://127.0.0.1:4100'),
             s3Endpoint: trim(env.ZONE_S3_ENDPOINT || 'https://s3.openvibe.media'),
         },
+        // OpenVibe.Events: ZONE_EVENTS_SECRET signs the deliveries to POST /internal/events (Media's per-zone rollups,
+        // media.usage.recorded; comma-separated for rotation, 32+ characters each). Unset, the route answers 503 and no
+        // subscription is created at boot.
+        events: {
+            url: trim(env.EVENTS_URL || ''),
+            secrets: String(env.ZONE_EVENTS_SECRET || '').split(',').map((x) => x.trim()).filter(Boolean),
+        },
         // The zones one project environment may hold besides its default.
         maxZonesPerEnv: Math.max(1, int(env.ZONE_MAX_PER_ENV, 20)),
     };

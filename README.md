@@ -19,6 +19,11 @@ bucket at `https://s3.openvibe.media`, path style.
 
 Zone never lists keys and never holds bytes.
 
+**Usage.** Zone never counts. Media sends each zone's closed hours as `media.usage.recorded`: requests by capability,
+read egress, and stored bytes as byte-hours. Zone keeps them (`zone_usage`, delivered signed to `POST /internal/events`,
+loopback only). `GET /zones/:zone_id/usage` sums the current UTC month beside Media's live snapshot, and the console
+shows each zone's requests and egress so far this month.
+
 ## What it does
 
 - **Default zones.** Every project environment has a `default` zone. Its namespace is the environment root, so it holds the environment's existing objects. Zone creates it the first time the environment is used, and it cannot be deleted on its own.

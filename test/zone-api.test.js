@@ -62,7 +62,8 @@ function fakeMedia(network) {
     const { startNetwork } = require('./helpers/mocks');
     const net = await startNetwork();
     let media;
-    const t = await boot({ clients: new Proxy({}, { get: (_o, k) => (...a) => media[k](...a) }) });
+    const EVENTS_SECRET = 'e'.repeat(40); // a test value: 32+ characters
+    const t = await boot({ clients: new Proxy({}, { get: (_o, k) => (...a) => media[k](...a) }), env: { ZONE_EVENTS_SECRET: EVENTS_SECRET } });
     await net.close();
     media = fakeMedia(t.network);
     const owner = t.network.addUser('owen');
@@ -155,6 +156,46 @@ function fakeMedia(network) {
         assert.deepStrictEqual([r.json().current.objects, r.json().current.stored_bytes], [3, 300]);
         const z = (await t.get(`/api/v1/zones/${assets.id}`, { as: viewer })).json();
         assert.deepStrictEqual(z.usage.objects, 3);
+    });
+
+    check('Media\'s hourly rollups (media.usage.recorded) arrive signed and sum into the usage series and the console', async () => {
+        const { signDeliveryHeaders } = require('openvibe-sdk/events');
+        const { ids } = contracts;
+        const HOUR = 3600 * 1000;
+        const hour = Math.floor(Date.now() / HOUR) * HOUR - HOUR;
+        const ovrn = `ovrn:zone:${project}:object-zone/${assets.id}`;
+        const def = (await t.get(`/api/v1/projects/${project}/zones?env=${assets.env}`, { as: owner })).json().zones.find((z) => z.default);
+        const rollup = (payload, over = {}) => ({
+            event_id: ids.newId('event'), event_type: 'media.usage.recorded', version: 1, source: 'media', actor: { type: 'service', id: 'media' },
+            timestamp: new Date().toISOString(), subject: { type: 'project', id: project }, visibility: 'internal', priority: 'low',
+            payload: { project_id: project, env: assets.env, resource: ovrn, dimension: assets.id.toLowerCase(), window: 'hour',
+                window_start: new Date(hour).toISOString(), window_end: new Date(hour + HOUR).toISOString(), errors: 0, ...payload }, ...over,
+        });
+        const deliver = async (ev, { secret = EVENTS_SECRET, headers = {} } = {}) => {
+            const raw = JSON.stringify({ event: ev });
+            const res = await fetch(`${t.base}/internal/events`, { method: 'POST', headers: { 'content-type': 'application/json', ...signDeliveryHeaders(raw, secret), ...headers }, body: raw });
+            return { status: res.status, body: await res.json() };
+        };
+        let r = await deliver(rollup({ capability: 'media.object.read', unit: 'requests', quantity: 10 }));
+        assert.deepStrictEqual([r.status, r.body.outcome], [200, 'recorded'], JSON.stringify(r.body));
+        assert.strictEqual((await deliver(rollup({ capability: 'media.object.read', unit: 'egress_bytes', quantity: 2048 }))).body.outcome, 'recorded');
+        assert.strictEqual((await deliver(rollup({ capability: 'media.object.read', unit: 'requests', quantity: 12, revision: 2 }))).body.outcome, 'recorded', 'a corrected hour replaces it');
+        assert.strictEqual((await deliver(rollup({ capability: 'media.object.read', unit: 'requests', quantity: 1, revision: 1 }))).body.outcome, 'ignored:stale', 'an older revision never does');
+        assert.strictEqual((await deliver(rollup({ capability: 'media.object.read', unit: 'requests', quantity: 1 }, { source: 'tools' }))).body.outcome, 'ignored:source', 'only Media reports');
+        assert.strictEqual((await deliver(rollup({ capability: 'media.object.read', unit: 'requests', quantity: 1, dimension: def.id.toLowerCase() }))).body.outcome, 'ignored:resource', 'resource and dimension name one zone');
+        const elsewhere = `zon_${ids.ulid()}`;
+        assert.strictEqual((await deliver(rollup({ capability: 'media.object.read', unit: 'requests', quantity: 1, resource: `ovrn:zone:${project}:object-zone/${elsewhere}`, dimension: elsewhere.toLowerCase() }))).body.outcome, 'ignored:zone', 'a zone Zone does not have');
+        assert.strictEqual((await deliver(rollup({ capability: 'media.object.read', unit: 'requests', quantity: 1, env: assets.env === 'production' ? 'sandbox' : 'production' }))).body.outcome, 'ignored:zone', 'or of another environment');
+        assert.strictEqual((await deliver(rollup({ capability: 'media.object.read', unit: 'requests', quantity: 1 }), { secret: 'x'.repeat(40) })).status, 401, 'unsigned deliveries are refused');
+        assert.strictEqual((await deliver(rollup({ capability: 'media.object.read', unit: 'requests', quantity: 1 }), { headers: { 'x-forwarded-for': '203.0.113.9' } })).status, 403, 'and so is anything through a proxy');
+        r = await t.get(`/api/v1/zones/${assets.id}/usage`, { as: viewer });
+        const u = r.json();
+        assert.ok(contracts.zones.checkObjectZoneUsage(u).valid, JSON.stringify(contracts.zones.checkObjectZoneUsage(u).errors));
+        const q = (unit) => (u.series.find((x) => x.capability === 'media.object.read' && x.unit === unit) || {}).quantity;
+        assert.deepStrictEqual([q('requests'), q('egress_bytes')], [12, 2048], 'the series sums the month\'s hours');
+        assert.strictEqual(u.window_end, new Date(hour + HOUR).toISOString(), 'up to the last hour Media reported');
+        r = await t.get(`/p/${project}`, { as: owner });
+        assert.ok(r.text.includes('this month: 12 requests · 2.0 KB out'), 'the console shows the month\'s requests and egress');
     });
 
     check('deletion: not empty, held, then recursive; the job marks it deleted and its name is retired', async () => {
