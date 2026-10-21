@@ -6,7 +6,8 @@ Private S3-compatible storage zones for OpenVibe projects, at https://openvibe.z
 OpenVibe.Contracts, with its amendments of 2026-10-02 and 2026-10-14.
 
 A **zone** is a named object zone of one project environment, sandbox or production. Any S3 tool reaches it as a
-bucket at `https://s3.openvibe.media`, path style (`https://s3.openvibe.network` until that name's DNS record exists).
+bucket at `https://s3.openvibe.media`, path style. That name is DNS-only, so an object may be larger than the 100 MB a
+request Cloudflare's proxy carries; `https://s3.openvibe.network` is the same surface behind Cloudflare.
 
 ## Owns
 
@@ -54,7 +55,7 @@ Zone never lists keys, never holds bytes and never counts.
 
 ## Capabilities and API
 
-Base `https://openvibe.zone/api/v1`. A caller is either:
+Base `https://openvibe.zone/api/v1` (`https://api.openvibe.zone/api/v1` is the same API). A caller is either:
 - a developer app of the project, with the route's capability for audience `openvibe.zone` (a sandbox app reaches only the sandbox), or
 - a member of the project: any role reads, and admins and owners change.
 
