@@ -3,7 +3,7 @@
   "stage": "alpha",
   "code": true,
   "wave": "T8",
-  "plan": "Plan track T8 (Games), OpenVibe.Games ADR-0007 decision 10 and M5: the platform's game services as their own service",
+  "plan": "ADR-031 in OpenVibe.Contracts and its amendments of 2026-10-02 and 2026-10-14 (OpenVibe.Zone replaces the planned OpenVibe.Data); live since 2026-10-14",
   "runtime": "node 22, express 4, PostgreSQL 18 (openvibe-sdk/db, async) + Valkey 9",
   "port": 5050,
   "domain": "openvibe.zone",
@@ -26,12 +26,11 @@
   ],
   "notYet": [
     "Per-zone usage series (Media's hourly rollups with the zone's resource name)",
-    "api.openvibe.zone and s3.openvibe.media DNS records (owner)",
     "CopyObject and UploadPartCopy on Media's S3 surface"
   ],
   "capabilitiesRegistered": true,
   "serviceManifestRegistered": true,
-  "deployed": false,
+  "deployed": true,
   "placeholderInSites": false,
   "features": [
     "Default zone per project environment, created on first use",
@@ -42,5 +41,5 @@
     "Resource index and control (delete) for OpenVibe.Services"
   ],
   "deployment": "openvibe-ovh: unit openvibe-zone.service on 127.0.0.1:5050 (git checkout /opt/openvibe.zone, env /etc/openvibe/zone.env, database ov_zone)",
-  "updated": "2026-10-20"
+  "updated": "2026-10-21"
 }
