@@ -22,12 +22,11 @@
     "Names never reused (name_taken, name_retired)",
     "Provisioning in Media by revision; provisioning → active once Media acknowledges; a 15 s job retries and finishes deletions",
     "Console: projects, zones, usage, S3 access keys issued through Media (secret shown once)",
-    "Resource index and control (delete) for OpenVibe.Services"
+    "Resource index and control (delete) for OpenVibe.Services",
+    "Per-zone usage by the hour: Media's media.usage.recorded rollups, kept and summed for the console",
+    "Over Media's S3 surface (2026-10-15): multipart uploads and server-side copies (CopyObject, UploadPartCopy)"
   ],
-  "notYet": [
-    "Per-zone usage series (Media's hourly rollups with the zone's resource name)",
-    "CopyObject and UploadPartCopy on Media's S3 surface"
-  ],
+  "notYet": [],
   "capabilitiesRegistered": true,
   "serviceManifestRegistered": true,
   "deployed": true,
@@ -38,7 +37,9 @@
     "Names never reused (name_taken, name_retired)",
     "Provisioning in Media by revision; provisioning → active once Media acknowledges; a 15 s job retries and finishes deletions",
     "Console: projects, zones, usage, S3 access keys issued through Media (secret shown once)",
-    "Resource index and control (delete) for OpenVibe.Services"
+    "Resource index and control (delete) for OpenVibe.Services",
+    "Per-zone usage by the hour: Media's media.usage.recorded rollups, kept and summed for the console",
+    "Over Media's S3 surface (2026-10-15): multipart uploads and server-side copies (CopyObject, UploadPartCopy)"
   ],
   "deployment": "openvibe-ovh: unit openvibe-zone.service on 127.0.0.1:5050 (git checkout /opt/openvibe.zone, env /etc/openvibe/zone.env, database ov_zone)",
   "updated": "2026-10-21"
