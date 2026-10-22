@@ -55,6 +55,11 @@ function createPageRoutes(ctx) {
     const page = (req, res, o, status = 200) => send(res, status, { viewer: req.viewer, config, path: req.originalUrl, ...o });
     const person = (req) => (req.viewer && req.viewer.kind === 'user' && /^usr_/.test(String(req.viewer.subject || '')) ? req.viewer : null);
     const s3 = config.media.s3Endpoint;
+    /** Media's published limits (zone/media-limits.js), or an empty map: the figures that need them then hide. */
+    const limitsOf = async () => { try { return ctx.mediaLimits ? await ctx.mediaLimits.get() : new Map(); } catch { return new Map(); } };
+    const sizeRule = (L) => (L.get('single_upload_bytes') && L.get('multipart_bytes')
+        ? `one request carries at most ${bytes(L.get('single_upload_bytes').production)}, so larger files go up in parts (the AWS CLI, the SDKs and rclone do this by default); an object is at most ${bytes(L.get('multipart_bytes').production)}`
+        : 'larger files go up in parts, as the AWS CLI, the SDKs and rclone do by default');
 
     const signInPage = (req, res, next) => page(req, res, {
         title: 'Sign in', body: html`<h1>Sign in to manage your zones</h1>
@@ -63,8 +68,23 @@ function createPageRoutes(ctx) {
     }, 401);
 
     // ── Home ─────────────────────────────────────────────────
-    r.get('/', (req, res) => {
+    r.get('/', async (req, res) => {
         const me = person(req);
+        const L = await limitsOf();
+        const prod = L.get('storage_bytes'), sandbox = L.get('storage_bytes');
+        const stats = [];
+        if (prod) stats.push([bytes(prod.production), 'per project in production, at no charge']);
+        if (sandbox && sandbox.sandbox) stats.push([bytes(sandbox.sandbox), 'more in each project\'s sandbox']);
+        if (L.get('multipart_bytes')) stats.push([bytes(L.get('multipart_bytes').production), 'the largest object, uploaded in parts']);
+        if (L.get('deleted_retention_days')) stats.push([`${L.get('deleted_retention_days').production} days`, 'to restore a deleted object']);
+        const faq = [
+            { q: 'Which S3 operations work?', a: 'Buckets (zones) and objects: put, get, head, list, delete, presigned URLs, multipart uploads and server-side copies (CopyObject, UploadPartCopy). ACLs, bucket policies and versioning are not supported: zones are private and access is the key\'s.' },
+            { q: 'Which tools can I use?', a: `Any S3 client that signs with Signature Version 4 and uses path-style addressing: the AWS CLI and SDKs, rclone, restic and backup tools. Point it at ${s3}, region us-east-1.` },
+            { q: 'Who can read my objects?', a: 'Only requests signed with a key you issued for that zone, or a presigned URL you made, until it expires or its key is revoked. A zone has no public links.' },
+            { q: 'What does it cost?', a: prod ? `Each project includes ${bytes(prod.production)} in production and ${bytes(prod.sandbox)} in its sandbox at no charge. A zone can have its own quota below that.` : 'Each project includes storage in production and in its sandbox at no charge, and a zone can have its own quota below that.' },
+            { q: 'What happens when I delete something?', a: L.get('deleted_retention_days') ? `A deleted object can be restored for ${L.get('deleted_retention_days').production} days. Deleting a whole zone removes every object and every copy of it, and its name is never given to another zone.` : 'Deleting a whole zone removes every object and every copy of it, and its name is never given to another zone.' },
+            { q: 'Where are my files kept?', a: 'Every object is an OpenVibe.Media object, stored and served by Media and readable through its API as well as over S3.' },
+        ];
         const hero = showcase.hero({
             eyebrow: `${SITE_NAME} · part of OpenVibe`,
             title: 'Private storage zones:',
@@ -73,10 +93,12 @@ function createPageRoutes(ctx) {
             actions: me
                 ? [{ label: 'Your projects', href: '/projects', primary: true }, { label: 'How to use it', href: '/docs' }]
                 : [{ label: 'Sign in to start', href: '/auth/login?next=%2Fprojects', primary: true }, { label: 'How to use it', href: '/docs' }],
-            note: 'Each project includes 1 GB in production and 100 MB in its sandbox at no charge.',
+            note: prod ? `Each project includes ${bytes(prod.production)} in production and ${bytes(prod.sandbox)} in its sandbox at no charge.` : 'Each project includes storage in production and in its sandbox at no charge.',
+            html: stats.length ? `<dl class="zn-stats">${stats.map(([dt, dd]) => `<div><dt>${dt}</dt><dd>${dd}</dd></div>`).join('')}</dl>` : undefined,
         });
         page(req, res, {
-            index: true, cache: me ? null : PUBLIC_CACHE, jsonLd: homeJsonLd(config), styles: [showcase.STYLESHEET],
+            index: true, cache: me ? null : PUBLIC_CACHE, styles: [showcase.STYLESHEET],
+            jsonLd: [...homeJsonLd(config), { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }],
             description: 'Private S3 buckets for your OpenVibe projects: create zones, issue access keys scoped to them, and use the AWS SDKs, rclone or any S3 tool.',
             body: html`${raw(hero)}
 ${raw(showcase.steps({
@@ -88,16 +110,35 @@ ${raw(showcase.steps({
                     { title: 'Use any S3 tool', text: `Point it at ${s3} with path-style addressing.`, href: '/docs' },
                 ],
             }))}
-<section class="zn-section" aria-labelledby="zn-try"><h2 id="zn-try">With the tools you have</h2>
-<pre tabindex="0" class="zn-code"><code>aws configure set aws_access_key_id ovk_…
+${raw(showcase.code({
+                id: 'tools',
+                title: 'With the tools you have',
+                lede: `Path-style addressing, region us-east-1, Signature Version 4: ${sizeRule(L)}.`,
+                samples: [
+                    { label: 'AWS CLI', lang: 'bash', code: `aws configure set aws_access_key_id ovk_…
 aws configure set aws_secret_access_key …
 aws --endpoint-url ${s3} s3 cp ./site s3://assets/ --recursive
-aws --endpoint-url ${s3} s3 ls s3://assets/</code></pre>
-<pre tabindex="0" class="zn-code"><code>rclone config create oz s3 provider Other endpoint ${s3} \\
+aws --endpoint-url ${s3} s3 ls s3://assets/` },
+                    { label: 'rclone', lang: 'bash', code: `rclone config create oz s3 provider Other endpoint ${s3} \\
   access_key_id ovk_… secret_access_key … no_check_bucket true
-rclone sync ./backups oz:backups</code></pre>
-<p class="zn-muted">Large files go up in parts, as these tools do by default: each part up to 100 MB, an object up to 20 GB.</p>
-</section>
+rclone sync ./backups oz:backups` },
+                    { label: 'Node (AWS SDK v3)', lang: 'js', code: `const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+
+const s3 = new S3Client({
+    endpoint: '${s3}', region: 'us-east-1', forcePathStyle: true,
+    credentials: { accessKeyId: 'ovk_…', secretAccessKey: process.env.ZONE_SECRET },
+});
+await s3.send(new PutObjectCommand({ Bucket: 'assets', Key: 'hello.txt', Body: 'Hello' }));
+const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: 'assets', Key: 'hello.txt' }), { expiresIn: 3600 });` },
+                    { label: 'Manage zones (openvibe-sdk)', lang: 'js', code: `const { createClient } = require('openvibe-sdk/core');
+const { createZoneClient } = require('openvibe-sdk/zone');
+
+const zone = createZoneClient(createClient({ tokenProvider: tokens }));   // a project member's or app's tokens
+const z = await zone.zones.create('prj_…', { env: 'production', name: 'assets', quota_bytes: 512 * 1024 ** 2 });
+console.log(await zone.zones.usage(z.id));` },
+                ],
+            }))}
 <section class="zn-section" aria-labelledby="zn-what"><h2 id="zn-what">What a zone gives you</h2>
 <ul class="zn-list">
 <li><strong>Private by default.</strong> A named zone's objects are reached only with a signed request or a presigned URL, never a public link.</li>
@@ -105,7 +146,19 @@ rclone sync ./backups oz:backups</code></pre>
 <li><strong>Scoped keys.</strong> A key reads, writes or both, in one environment, for every zone or only the ones you name. Revoking it takes effect at once.</li>
 <li><strong>Quotas you set.</strong> Each zone may have its own ceiling below the environment's.</li>
 <li><strong>One deletion path.</strong> Deleting a zone removes every object and every copy of it.</li>
-</ul></section>`,
+</ul></section>
+${L.size ? raw(showcase.limits({
+                title: 'Limits',
+                lede: 'What one project gets in each environment, as OpenVibe.Media, which stores the objects, enforces them.',
+                columns: ['Production', 'Sandbox'],
+                rows: ['storage_bytes', 'single_upload_bytes', 'multipart_bytes', 'part_bytes', 'unfinished_upload_hours', 'deleted_retention_days'].filter((id) => L.get(id)).map((id) => {
+                    const l = L.get(id);
+                    const fmt = (v) => (l.unit === 'bytes' ? bytes(v) : `${Number(v).toLocaleString('en-US')} ${l.unit}`);
+                    return { label: l.label, values: [fmt(l.production), fmt(l.sandbox != null ? l.sandbox : l.production)] };
+                }),
+                source: 'https://openvibe.media/limits.json',
+            })) : ''}
+<section class="zn-section zn-faq" aria-labelledby="zn-faq-h"><h2 id="zn-faq-h">Questions</h2>${faq.map((f) => html`<details><summary>${f.q}</summary><p>${f.a}</p></details>`)}</section>`,
         });
     });
 
@@ -266,7 +319,7 @@ ${keysSection}
     }));
 
     // ── Docs ─────────────────────────────────────────────────
-    r.get('/docs', (req, res) => page(req, res, {
+    r.get('/docs', async (req, res) => { const L = await limitsOf(); page(req, res, {
         index: true, cache: PUBLIC_CACHE, title: 'Using OpenVibe.Zone',
         description: 'Create zones, issue S3 access keys and reach your buckets with the AWS SDKs, rclone and any S3 tool: the OpenVibe.Zone guide and API.',
         body: html`<h1>Using OpenVibe.Zone</h1>
@@ -283,7 +336,7 @@ ${keysSection}
 <li><strong>Multipart uploads:</strong> CreateMultipartUpload, UploadPart, CompleteMultipartUpload, AbortMultipartUpload, ListParts and ListMultipartUploads, with S3's rules (every part but the last at least 5 MiB). An unfinished upload expires after a day.</li>
 <li><strong>Server-side copies:</strong> CopyObject and UploadPartCopy, within a zone or from another zone of the same environment the key may read, so <code>aws s3 cp s3://a/x s3://b/x</code> and rclone's server-side moves never download the bytes.</li>
 <li><strong>Not supported:</strong> ACLs and bucket policies (zones are private; access is the key's), versioning (a zone keeps the current object), and deleting a zone over S3 (do that here).</li>
-<li><strong>Size:</strong> one request carries at most 100 MB through this endpoint, so larger files go up in parts (the AWS CLI, the SDKs and rclone do this by default); an object is at most 20 GB.</li>
+<li><strong>Size:</strong> ${sizeRule(L)}.</li>
 <li><strong>Privacy:</strong> zones are private. Every request is signed. A presigned URL reaches only its own key, until it expires or its key is revoked.</li>
 </ul>
 <h2 id="keys">Access keys</h2>
@@ -305,7 +358,7 @@ ${keysSection}
 <li><code>GET /zones/:zone_id/usage</code> (<code>zone.usage.read</code>): Media's live snapshot, and this month's metered series (requests, egress, byte-hours) as Media reports each closed hour.</li>
 </ul>
 <p>The objects of a zone are OpenVibe.Media objects. Media's own API (<code>/api/v2/:project_id/objects</code>, with <code>namespace</code> set to the zone's id) reads and writes the same objects.</p>`,
-    }));
+    }); });
 
     r.get('/updates', (req, res) => page(req, res, {
         index: true, cache: PUBLIC_CACHE,
