@@ -80,3 +80,13 @@ details input { font: inherit; padding: 7px 9px; border-radius: 8px; border: 1px
 .zn-secret dd { margin: 0; }
 .zn-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 @media (max-width: 600px) { .zn-form { flex-direction: column; align-items: stretch; } }
+
+/* The home: Media's limits beside the hero, and the questions (their summaries are not the danger-zone red). */
+.zn-stats { margin: 0; display: grid; gap: 10px; }
+.zn-stats div { border: 1px solid var(--border, #1f2d47); border-radius: 12px; padding: 12px 16px; background: var(--bg-card, #131c2e); }
+.zn-stats dt { font-size: 1.25rem; font-weight: 700; color: var(--text-primary, #e6edf7); }
+.zn-stats dd { margin: 2px 0 0; color: var(--text-secondary, #96a7c2); font-size: .92rem; }
+.zn-faq details { border: 1px solid var(--border, #1f2d47); border-radius: 10px; padding: 4px 16px; margin: 8px 0; background: var(--bg-card, #131c2e); }
+.zn-faq details[open] { padding-bottom: 12px; }
+.zn-faq summary { color: var(--text-primary, #e6edf7); font-weight: 600; padding: 8px 0; }
+.zn-faq p { margin: 4px 0 0; color: var(--text-secondary, #96a7c2); }

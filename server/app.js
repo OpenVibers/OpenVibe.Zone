@@ -57,7 +57,8 @@ async function createApp(opts = {}) {
     const clients = opts.clients || createClients({ config, fetchImpl });
     const usage = createUsage({ s, log });
     const zones = createZones({ s, clients, config, log, metering: usage });
-    const ctx = { config, s, keys, sso, principal, log, clients, zones, usage };
+    const mediaLimits = opts.mediaLimits || require('./zone/media-limits').createMediaLimits({ config, fetchImpl, log });
+    const ctx = { config, s, keys, sso, principal, log, clients, zones, usage, mediaLimits };
 
     const app = express();
     app.disable('x-powered-by');
