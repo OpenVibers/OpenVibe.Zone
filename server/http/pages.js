@@ -139,7 +139,7 @@ const z = await zone.zones.create('prj_…', { env: 'production', name: 'assets'
 console.log(await zone.zones.usage(z.id));` },
                 ],
             }))}
-<section class="zn-section" aria-labelledby="zn-what"><h2 id="zn-what">What a zone gives you</h2>
+<section class="zn-section zn-home" aria-labelledby="zn-what"><h2 id="zn-what">What a zone gives you</h2>
 <ul class="zn-list">
 <li><strong>Private by default.</strong> A named zone's objects are reached only with a signed request or a presigned URL, never a public link.</li>
 <li><strong>Names that stay yours.</strong> A zone's name is never given to another zone, even after it is deleted, so a URL signed for one bucket can never reach a different one.</li>
@@ -158,7 +158,7 @@ ${L.size ? raw(showcase.limits({
                 }),
                 source: 'https://openvibe.media/limits.json',
             })) : ''}
-<section class="zn-section zn-faq" aria-labelledby="zn-faq-h"><h2 id="zn-faq-h">Questions</h2>${faq.map((f) => html`<details><summary>${f.q}</summary><p>${f.a}</p></details>`)}</section>`,
+<section class="zn-section zn-home zn-faq" aria-labelledby="zn-faq-h"><h2 id="zn-faq-h">Questions</h2>${faq.map((f) => html`<details><summary>${f.q}</summary><p>${f.a}</p></details>`)}</section>`,
         });
     });
 
