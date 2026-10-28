@@ -17,7 +17,7 @@ const BUDGETS = {
     htmlRawKB: 33,   // 28.8 openvibe-shared 4.15 footer: the compact footer opens into the whole one, and the pulse line; measured 24.9 (the home page: hero, features, steps, cta, JSON-LD)
     htmlBrotliKB: 9,   // 7.1 openvibe-shared 4.15 footer: the compact footer opens into the whole one, and the pulse line; 6.2
     jsFiles: 5,   // 5 (theme-loader, web-runtime, navbar, footer, boost: openvibe-shared/shell)
-    jsRawKB: 292,   // 287.2 Shared 4.17.0: OpenCoins and Vibes chips (wallet: true) in the navbar; 273.2 openvibe-shared 4.15 footer: the compact footer opens into the whole one, and the pulse line; 264.3 with Shared 4.13.0 (2026-10-26: account links); 239.8
+    jsRawKB: 297,   // 293 openvibe-shared 4.22.0: the navbar's magnifier search button and More dropdown (search.js and loading.js load only when used); 287.2 Shared 4.17.0: OpenCoins and Vibes chips (wallet: true) in the navbar; 273.2 openvibe-shared 4.15 footer: the compact footer opens into the whole one, and the pulse line; 264.3 with Shared 4.13.0 (2026-10-26: account links); 239.8
     jsBrotliKB: 72,   // 70.5 Shared 4.17.0: OpenCoins and Vibes chips (wallet: true) in the navbar; 67.9 openvibe-shared 4.15 footer: the compact footer opens into the whole one, and the pulse line; 65.3 Shared 4.12.0: the light/dark switch, the seasonal mark and the theme pairs; 56.5
     cssFiles: 2,   // 2 (app.css + the cached /shared/showcase.css)
     cssRawKB: 30,   // 26 with Shared 4.13.0 (2026-10-26: account links); 18.7 (app.css 7.1 with Play's cards, boards and achievement tiles, plus showcase.css; 2026-10-14)
