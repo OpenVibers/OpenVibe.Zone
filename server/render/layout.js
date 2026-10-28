@@ -22,12 +22,12 @@ const NETWORK_URL = 'https://openvibe.network';
 const SITE_NAME = 'OpenVibe.Zone';
 const TAGLINE = 'Private S3-compatible storage';
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
-// The product's own navigation: one entry per public page it serves.
+// The product's own places: the main ones carry an icon (phones get them as the bottom tab bar), the rest fold into
+// the navbar's More (Shared 4.22). Search is the navbar's magnifier and What shipped is the footer's.
 const NAV = [
-    { label: 'Zone', href: '/' },
-    { label: 'Your projects', href: '/projects' },
-    { label: 'Docs', href: '/docs' },
-    { label: 'What shipped', href: '/updates' },
+    { label: 'Zone', href: '/', icon: 'fa-house' },
+    { label: 'Your projects', href: '/projects', icon: 'fa-diagram-project' },
+    { label: 'Docs', href: '/docs', icon: 'fa-book' },
 ];
 
 const hashes = new Map();
@@ -58,7 +58,8 @@ function renderPage(o) {
     const nav = {
         service: 'zone',
         apiBase: NETWORK_URL,
-        links: NAV.map((l) => ({ label: l.label, href: l.href, active: pathNow === l.href || pathNow.startsWith(`${l.href}/`) })),
+        links: NAV.map((l) => ({ label: l.label, href: l.href, ...(l.icon ? { icon: l.icon } : {}), ...(l.more ? { more: true } : {}), active: pathNow === l.href || pathNow.startsWith(`${l.href}/`) })),
+        appBar: true,   // phones: the places with icons as the bottom tab bar (Shared 4.20)
         history: { type: 'page', title: o.title || SITE_NAME },
         silentLogin: `${o.config.baseUrl}/auth/login?silent=1&next={url}`,
         sessionUrl: '/auth/me',
