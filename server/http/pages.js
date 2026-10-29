@@ -68,8 +68,8 @@ function createPageRoutes(ctx) {
     }, 401);
 
     // ── Home ─────────────────────────────────────────────────
-    r.get('/', async (req, res) => {
-        const me = person(req);
+    async function homePage({ signed = false } = {}) {
+        const me = signed;
         const L = await limitsOf();
         const prod = L.get('storage_bytes'), sandbox = L.get('storage_bytes');
         const stats = [];
@@ -96,8 +96,8 @@ function createPageRoutes(ctx) {
             note: prod ? `Each project includes ${bytes(prod.production)} in production and ${bytes(prod.sandbox)} in its sandbox at no charge.` : 'Each project includes storage in production and in its sandbox at no charge.',
             html: stats.length ? `<dl class="zn-stats">${stats.map(([dt, dd]) => `<div><dt>${dt}</dt><dd>${dd}</dd></div>`).join('')}</dl>` : undefined,
         });
-        page(req, res, {
-            index: true, cache: me ? null : PUBLIC_CACHE, styles: [showcase.STYLESHEET],
+        return {
+            agent: true, index: true, cache: me ? null : PUBLIC_CACHE, styles: [showcase.STYLESHEET],
             jsonLd: [...homeJsonLd(config), { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }],
             description: 'Private S3 buckets for your OpenVibe projects: create zones, issue access keys scoped to them, and use the AWS SDKs, rclone or any S3 tool.',
             body: html`${raw(hero)}
@@ -159,8 +159,9 @@ ${L.size ? raw(showcase.limits({
                 source: 'https://openvibe.media/limits.json',
             })) : ''}
 <section class="zn-section zn-home zn-faq" aria-labelledby="zn-faq-h"><h2 id="zn-faq-h">Questions</h2>${faq.map((f) => html`<details><summary>${f.q}</summary><p>${f.a}</p></details>`)}</section>`,
-        });
-    });
+        };
+    }
+    r.get('/', async (req, res) => page(req, res, await homePage({ signed: !!person(req) })));
 
     // ── A person's projects ──────────────────────────────────
     r.get('/projects', async (req, res) => {
@@ -319,8 +320,8 @@ ${keysSection}
     }));
 
     // ── Docs ─────────────────────────────────────────────────
-    r.get('/docs', async (req, res) => { const L = await limitsOf(); page(req, res, {
-        index: true, cache: PUBLIC_CACHE, title: 'Using OpenVibe.Zone',
+    async function docsPage() { const L = await limitsOf(); return {
+        agent: true, index: true, cache: PUBLIC_CACHE, title: 'Using OpenVibe.Zone',
         description: 'Create zones, issue S3 access keys and reach your buckets with the AWS SDKs, rclone and any S3 tool: the OpenVibe.Zone guide and API.',
         body: html`<h1>Using OpenVibe.Zone</h1>
 <p class="zn-lede">A zone is an S3 bucket of one project environment. You make zones here or with the API, issue access keys, and point any S3 tool at <code>${s3}</code>.</p>
@@ -358,14 +359,19 @@ ${keysSection}
 <li><code>GET /zones/:zone_id/usage</code> (<code>zone.usage.read</code>): Media's live snapshot, and this month's metered series (requests, egress, byte-hours) as Media reports each closed hour.</li>
 </ul>
 <p>The objects of a zone are OpenVibe.Media objects. Media's own API (<code>/api/v2/:project_id/objects</code>, with <code>namespace</code> set to the zone's id) reads and writes the same objects.</p>`,
-    }); });
+    }; }
+    r.get('/docs', async (req, res) => page(req, res, await docsPage()));
 
-    r.get('/updates', (req, res) => page(req, res, {
-        index: true, cache: PUBLIC_CACHE,
+    const updatesPage = () => ({
+        agent: true, index: true, cache: PUBLIC_CACHE,
         title: `What shipped on ${SITE_NAME}`,
         description: 'Every change deployed to OpenVibe.Zone, newest first, from the OpenVibe network\'s shared update log.',
         body: raw(frame.updatesBody({ service: 'zone', siteName: SITE_NAME }) + `<script src="${ovServe.url('shipped.js')}" defer></script>`),
-    }));
+    });
+    r.get('/updates', (req, res) => page(req, res, updatesPage()));
+
+    // The public pages the agent layer's Markdown twins (server/agent-pages.js) render with the same builders.
+    r.publicViews = { home: homePage, docs: docsPage, updates: updatesPage };
 
     // ── Discovery: robots.txt, sitemap.xml, llms.txt, llms-full.txt ──
     r.use(createDiscoveryRoutes(ctx));
