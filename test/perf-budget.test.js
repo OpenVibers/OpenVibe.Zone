@@ -21,7 +21,7 @@ const BUDGETS = {
     jsBrotliKB: 76,   // 74.2 openvibe-shared 4.25.0: the menu's orb beside the brand, both balances on phones, messages, the account sheet on phones and the bar stepping away on phones; 70.5 Shared 4.17.0: OpenCoins and Vibes chips (wallet: true) in the navbar; 67.9 openvibe-shared 4.15 footer: the compact footer opens into the whole one, and the pulse line; 65.3 Shared 4.12.0: the light/dark switch, the seasonal mark and the theme pairs; 56.5
     cssFiles: 2,   // 2 (app.css + the cached /shared/showcase.css)
     cssRawKB: 36,   // 31.5 openvibe-shared 4.26.1 (hero visual); 26 with Shared 4.13.0 (2026-10-26: account links); 18.7 (app.css 7.1 with Play's cards, boards and achievement tiles, plus showcase.css; 2026-10-14)
-    cssBrotliKB: 7,   // 5.7 with Shared 4.13.0 (2026-10-26: account links); 4.9
+    cssBrotliKB: 7.3,   // raised for openvibe-shared v4.39.0 (rail wrap, card sub/preview, 44 px touch targets, stats links, launcher columns: +1.3 KB raw over kit.css, room.css and showcase.css); measured 7.3
     externalFiles: 0,   // 0
 };
 
