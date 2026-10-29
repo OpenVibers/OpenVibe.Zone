@@ -84,6 +84,10 @@ function renderPage(o) {
         description: o.description || `${SITE_NAME} — ${TAGLINE}`,
         canonical,
         robots: o.index ? 'index, follow' : 'noindex, nofollow',
+        // A page with a Markdown twin (o.agent) advertises it in the head and the Link header; the twin itself
+        // is server/agent-pages.js.
+        agentLayer: o.agent === true,
+        llms: `${String(o.config.baseUrl).replace(/\/+$/, '')}/llms.txt`,
         jsonLd: (o.jsonLd || []).filter(Boolean),
         home: '/',
         navLinks: NAV,
@@ -121,6 +125,10 @@ function send(res, status, o) {
     const personal = o.viewer && o.viewer.kind === 'user';
     if (!res.get('Cache-Control')) res.set('Cache-Control', !personal && o.cache ? o.cache : cache.htmlHeaders({ private: true }));
     res.set('Vary', 'Cookie');
+    if (o.agent) {
+        const site = String(o.config.baseUrl).replace(/\/+$/, '');
+        res.set('Link', require('openvibe-shared/agent-layer').linkHeaderTags(`${site}${String(o.path || '/').split('?')[0]}`, `${site}/llms.txt`).header);
+    }
     res.status(status).type('html').send(renderPage(o));
 }
 
