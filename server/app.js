@@ -28,6 +28,8 @@ const { createPrincipal } = require('./http/principal');
 const { createApi } = require('./http/api');
 const { createUsage } = require('./zone/usage');
 const { eventsIntake } = require('./http/events');
+const accountDataLib = require('./account-data');
+const { createNetworkSender } = require('openvibe-sdk/account-data');
 const { createPageRoutes } = require('./http/pages');
 const { createServiceReadiness } = require('./observability');
 const { createCallerLimits } = require('./http/caller-limits');
@@ -58,7 +60,13 @@ async function createApp(opts = {}) {
     const usage = createUsage({ s, log });
     const zones = createZones({ s, clients, config, log, metering: usage });
     const mediaLimits = opts.mediaLimits || require('./zone/media-limits').createMediaLimits({ config, fetchImpl, log });
-    const ctx = { config, s, keys, sso, principal, log, clients, zones, usage, mediaLimits };
+    // The account export and deletion (ADR-033, server/account-data.js): what Zone holds about a person, and the
+    // erasure of it. The network sender posts Zone's part of an export back to Network with Zone's own token.
+    const accountData = opts.accountData || accountDataLib.create({ db: s.db, log });
+    const accountSend = opts.accountSend !== undefined ? opts.accountSend : (config.oauth.clientSecret ? createNetworkSender({
+        networkInternalUrl: config.networkInternalUrl, clientId: config.oauth.clientId, clientSecret: config.oauth.clientSecret, fetch: fetchImpl,
+    }) : null);
+    const ctx = { config, s, keys, sso, principal, log, clients, zones, usage, mediaLimits, accountData, accountSend };
 
     const app = express();
     app.disable('x-powered-by');
@@ -104,7 +112,8 @@ async function createApp(opts = {}) {
 
     // ── OpenVibe.Events → Zone (loopback only: nginx answers 404 for /internal/) ──
     // media.usage.recorded: Media's hourly rollups of each zone, kept for the usage view (server/zone/usage.js).
-    app.post('/internal/events', eventsIntake({ secrets: config.events.secrets, usage, log }));
+    // The two account topics (ADR-033): Zone's part of a person's export, and the erasure of what it keeps.
+    app.post('/internal/events', eventsIntake({ secrets: config.events.secrets, usage, accountData, accountSend, log }));
 
     // ── Machine endpoints ───────────────────────────────────
     app.get('/api/health', (_req, res) => res.json({ status: 'ok', service: 'openvibe-zone', version: VERSION }));
