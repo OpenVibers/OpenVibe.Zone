@@ -14,6 +14,9 @@
  *             answers what setUsage() stored for the project, or an empty network.project-usage-result@1.
  *             POST /api/v1/projects/:project/export-tokens as Network mints them (owner/admin only,
  *             sub app:app_<project ULID>, read-only caps, purpose export), recorded in exportTokens.
+ *             POST /internal/account-exports/:id/parts and POST /internal/account-deletions/:id/confirmations
+ *             (ADR-033: what a service posts back for a person's export and deletion), recorded in
+ *             accountParts and accountConfirmations.
  * Every request is recorded in `.requests` so tests can assert what was (not) called.
  */
 const http = require('http');
@@ -56,6 +59,8 @@ async function startNetwork({ sandboxAudiences = ['openvibe.events', 'openvibe.m
         users: new Map(), byUsername: new Map(), projects: new Map(), members: new Map(), apps: new Map(), creds: new Map(),
         grants: new Map(), quotas: new Map(), usage: new Map(), audit: [], codes: new Map(), refresh: new Map(),
         catalog: null, down: false, requests: [], tokenRequests: [], exportTokens: [], exportTtl: 300,
+        // ADR-033: the account export parts a service posts back, and the deletion confirmations it sends.
+        accountParts: [], accountConfirmations: [],
     };
     let issuer = null;
     let nextUserId = 1;
@@ -297,6 +302,15 @@ async function startNetwork({ sandboxAudiences = ['openvibe.events', 'openvibe.m
             if (missing.length) return json(400, { error: 'invalid_scope', error_description: `not granted: ${missing.join(' ')}` });
             if (!wanted.length) return json(400, { error: 'invalid_scope', error_description: `no grants for audience ${body.audience}` });
             return json(200, { access_token: mintApp(a, body.audience, wanted), token_type: 'Bearer', expires_in: 300, scope: wanted.join(' ') });
+        }
+        // ADR-033: a service posts its part of a person's export here, and confirms a deletion here.
+        if (url.pathname.startsWith('/internal/account-exports/') && url.pathname.endsWith('/parts') && req.method === 'POST') {
+            st.accountParts.push({ id: url.pathname.split('/')[3], body: JSON.parse(raw.toString('utf8') || '{}') });
+            return json(201, { ok: true });
+        }
+        if (url.pathname.startsWith('/internal/account-deletions/') && url.pathname.endsWith('/confirmations') && req.method === 'POST') {
+            st.accountConfirmations.push({ id: url.pathname.split('/')[3], body: JSON.parse(raw.toString('utf8') || '{}') });
+            return json(201, { ok: true });
         }
         if (url.pathname.startsWith('/api/v1/projects')) {
             const u = userFrom(req);
