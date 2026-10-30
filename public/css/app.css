@@ -94,3 +94,6 @@ details input { font: inherit; padding: 7px 9px; border-radius: 8px; border: 1px
 .zn-faq details[open] { padding-bottom: 12px; }
 .zn-faq summary { color: var(--text-primary, #e6edf7); font-weight: 600; padding: 8px 0; }
 .zn-faq p { margin: 4px 0 0; color: var(--text-secondary, #96a7c2); }
+
+/* Touch targets on phones (fleet audit 2026-10-29): the touch-only hit area for this group. Nothing moves with a mouse. */
+@media (pointer: coarse) { .zn-faq summary { min-height: 44px; } }
