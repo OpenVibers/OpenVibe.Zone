@@ -26,6 +26,7 @@ const { asyncRouter } = require('./router');
 const { createDiscoveryRoutes, homeJsonLd } = require('./discovery');
 const { sameOrigin } = require('./principal');
 const { html, raw } = require('../render/html');
+const { pickBlock, pickRules, foldBlock } = require('../render/short');
 const { send } = require('../render/layout');
 const { ZoneError, RESERVED } = require('../zone/zones');
 const { ClientError } = require('../zone/clients');
@@ -96,8 +97,39 @@ function createPageRoutes(ctx) {
             note: prod ? `Each project includes ${bytes(prod.production)} in production and ${bytes(prod.sandbox)} in its sandbox at no charge.` : 'Each project includes storage in production and in its sandbox at no charge.',
             html: stats.length ? `<dl class="zn-stats">${stats.map(([dt, dd]) => `<div><dt>${dt}</dt><dd>${dd}</dd></div>`).join('')}</dl>` : undefined,
         });
+        // The code samples are four blocks of the same kind: on a phone a row of chips picks one of them and the chip
+        // names it. Every sample stays in the page, and a wide screen shows them all.
+        const codePanes = [
+            { id: 'aws-cli', label: 'AWS CLI', lang: 'bash', code: `aws configure set aws_access_key_id ovk_…
+aws configure set aws_secret_access_key …
+aws --endpoint-url ${s3} s3 cp ./site s3://assets/ --recursive
+aws --endpoint-url ${s3} s3 ls s3://assets/` },
+            { id: 'rclone', label: 'rclone', lang: 'bash', code: `rclone config create oz s3 provider Other endpoint ${s3} \\
+  access_key_id ovk_… secret_access_key … no_check_bucket true
+rclone sync ./backups oz:backups` },
+            { id: 'node', label: 'Node (AWS SDK v3)', lang: 'js', code: `const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+
+const s3 = new S3Client({
+    endpoint: '${s3}', region: 'us-east-1', forcePathStyle: true,
+    credentials: { accessKeyId: 'ovk_…', secretAccessKey: process.env.ZONE_SECRET },
+});
+await s3.send(new PutObjectCommand({ Bucket: 'assets', Key: 'hello.txt', Body: 'Hello' }));
+const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: 'assets', Key: 'hello.txt' }), { expiresIn: 3600 });` },
+            { id: 'sdk', label: 'Manage zones (openvibe-sdk)', lang: 'js', code: `const { createClient } = require('openvibe-sdk/core');
+const { createZoneClient } = require('openvibe-sdk/zone');
+
+const zone = createZoneClient(createClient({ tokenProvider: tokens }));   // a project member's or app's tokens
+const z = await zone.zones.create('prj_…', { env: 'production', name: 'assets', quota_bytes: 512 * 1024 ** 2 });
+console.log(await zone.zones.usage(z.id));` },
+        ].map((c) => ({ id: c.id, label: c.label, html: String(html`<figure><figcaption>${c.label}</figcaption><pre tabindex="0" aria-label="${c.label}"><code${c.lang ? html` class="language-${c.lang}"` : ''}>${c.code}</code></pre></figure>`) }));
+        // The rule that shows the picked sample is written for this page.
+        const rules = [pickRules('tools', codePanes.map((p) => p.id))];
         return {
             agent: true, index: true, cache: me ? null : PUBLIC_CACHE, styles: [showcase.STYLESHEET],
+            // The rules that show the picked block of each pick block live in the page's head.
+            head: `<style>@supports selector(:has(*)){@media (max-width:640px){${rules.join('')}}</style>`,
+            shipped: false,
             jsonLd: [...homeJsonLd(config), { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }],
             description: 'Private S3 buckets for your OpenVibe projects: create zones, issue access keys scoped to them, and use the AWS SDKs, rclone or any S3 tool.',
             body: html`${raw(hero)}
@@ -110,59 +142,52 @@ ${raw(showcase.steps({
                     { title: 'Use any S3 tool', text: `Point it at ${s3} with path-style addressing.`, href: '/docs' },
                 ],
             }))}
-${raw(showcase.code({
-                id: 'tools',
-                title: 'With the tools you have',
-                lede: `Path-style addressing, region us-east-1, Signature Version 4: ${sizeRule(L)}.`,
-                samples: [
-                    { label: 'AWS CLI', lang: 'bash', code: `aws configure set aws_access_key_id ovk_…
-aws configure set aws_secret_access_key …
-aws --endpoint-url ${s3} s3 cp ./site s3://assets/ --recursive
-aws --endpoint-url ${s3} s3 ls s3://assets/` },
-                    { label: 'rclone', lang: 'bash', code: `rclone config create oz s3 provider Other endpoint ${s3} \\
-  access_key_id ovk_… secret_access_key … no_check_bucket true
-rclone sync ./backups oz:backups` },
-                    { label: 'Node (AWS SDK v3)', lang: 'js', code: `const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
-const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-
-const s3 = new S3Client({
-    endpoint: '${s3}', region: 'us-east-1', forcePathStyle: true,
-    credentials: { accessKeyId: 'ovk_…', secretAccessKey: process.env.ZONE_SECRET },
-});
-await s3.send(new PutObjectCommand({ Bucket: 'assets', Key: 'hello.txt', Body: 'Hello' }));
-const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: 'assets', Key: 'hello.txt' }), { expiresIn: 3600 });` },
-                    { label: 'Manage zones (openvibe-sdk)', lang: 'js', code: `const { createClient } = require('openvibe-sdk/core');
-const { createZoneClient } = require('openvibe-sdk/zone');
-
-const zone = createZoneClient(createClient({ tokenProvider: tokens }));   // a project member's or app's tokens
-const z = await zone.zones.create('prj_…', { env: 'production', name: 'assets', quota_bytes: 512 * 1024 ** 2 });
-console.log(await zone.zones.usage(z.id));` },
-                ],
-            }))}
-<section class="zn-section zn-home" aria-labelledby="zn-what"><h2 id="zn-what">What a zone gives you</h2>
-<ul class="zn-list">
+${raw(html`<section class="sc-sec zn-pick-sec" id="tools" aria-labelledby="zn-tools-h"><h2>With the tools you have</h2>
+<p class="sc-lede">Path-style addressing, region us-east-1, Signature Version 4: ${sizeRule(L)}.</p>
+${raw(pickBlock({ key: 'tools', label: 'The tools that reach a zone', head: 'With the tools you have', headId: 'zn-tools-h', bodyClass: 'sc-code', panes: codePanes }))}
+</section>`)}
+${raw(foldBlock({
+                id: 'zn-what',
+                head: '<h2 id="zn-what">What a zone gives you</h2>',
+                html: String(html`<ul class="zn-list">
 <li><strong>Private by default.</strong> A named zone's objects are reached only with a signed request or a presigned URL, never a public link.</li>
 <li><strong>Names that stay yours.</strong> A zone's name is never given to another zone, even after it is deleted, so a URL signed for one bucket can never reach a different one.</li>
 <li><strong>Scoped keys.</strong> A key reads, writes or both, in one environment, for every zone or only the ones you name. Revoking it takes effect at once.</li>
 <li><strong>Quotas you set.</strong> Each zone may have its own ceiling below the environment's.</li>
 <li><strong>One deletion path.</strong> Deleting a zone removes every object and every copy of it.</li>
-</ul></section>
-${L.size ? raw(showcase.limits({
-                title: 'Limits',
-                lede: 'What one project gets in each environment, as OpenVibe.Media, which stores the objects, enforces them.',
-                columns: ['Production', 'Sandbox'],
-                rows: ['storage_bytes', 'single_upload_bytes', 'multipart_bytes', 'part_bytes', 'unfinished_upload_hours', 'deleted_retention_days'].filter((id) => L.get(id)).map((id) => {
-                    const l = L.get(id);
-                    const fmt = (v) => (l.unit === 'bytes' ? bytes(v) : `${Number(v).toLocaleString('en-US')} ${l.unit}`);
-                    return { label: l.label, values: [fmt(l.production), fmt(l.sandbox != null ? l.sandbox : l.production)] };
+</ul>`),
+            }))}
+${L.size ? raw(foldBlock({
+                id: 'zn-limits',
+                head: '<h2 id="zn-limits-h">Limits</h2>',
+                html: showcase.limits({
+                    title: 'Limits',
+                    lede: 'What one project gets in each environment, as OpenVibe.Media, which stores the objects, enforces them.',
+                    columns: ['Production', 'Sandbox'],
+                    rows: ['storage_bytes', 'single_upload_bytes', 'multipart_bytes', 'part_bytes', 'unfinished_upload_hours', 'deleted_retention_days'].filter((id) => L.get(id)).map((id) => {
+                        const l = L.get(id);
+                        const fmt = (v) => (l.unit === 'bytes' ? bytes(v) : `${Number(v).toLocaleString('en-US')} ${l.unit}`);
+                        return { label: l.label, values: [fmt(l.production), fmt(l.sandbox != null ? l.sandbox : l.production)] };
+                    }),
+                    source: 'https://openvibe.media/limits.json',
                 }),
-                source: 'https://openvibe.media/limits.json',
             })) : ''}
-<section class="zn-section zn-home zn-faq" aria-labelledby="zn-faq-h"><h2 id="zn-faq-h">Questions</h2>${faq.map((f) => html`<details><summary>${f.q}</summary><p>${f.a}</p></details>`)}</section>`,
+${raw(foldBlock({
+                id: 'zn-faq',
+                head: '<h2 id="zn-faq-h">Questions</h2>',
+                html: String(html`<div class="zn-faq">${faq.map((f) => html`<details><summary>${f.q}</summary><p>${f.a}</p></details>`)}</div>`),
+            }))}
+${raw(foldBlock({
+                id: 'zn-shipped',
+                head: '<h2 id="zn-shipped-h">Recently shipped on OpenVibe.Zone</h2>',
+                html: frame.shipped({ service: 'zone', title: 'Recently shipped on OpenVibe.Zone' }),
+            }))}`,
         };
     }
-    r.get('/', async (req, res) => page(req, res, await homePage({ signed: !!person(req) })));
-
+    r.get('/', async (req, res) => {
+        const o = await homePage({ signed: !!person(req) });
+        page(req, res, o);
+    });
     // ── A person's projects ──────────────────────────────────
     r.get('/projects', async (req, res) => {
         const me = person(req);

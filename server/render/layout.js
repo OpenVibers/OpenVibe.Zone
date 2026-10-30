@@ -99,14 +99,15 @@ ${appIcon.headTags({ site: 'zone' })}
 ${(o.styles || []).map((name) => `<link rel="stylesheet" href="${esc(ovServe.url(name))}">`).join('\n')}
 ${render(scripts)}
 <meta name="ov-boost" content="zone@${esc(RELEASE)}">
-<script src="${ovServe.url('boost.js')}" data-main="#main" defer></script>`,
+<script src="${ovServe.url('boost.js')}" data-main="#main" defer></script>
+${o.head || ''}`,
         body: `<a class="skip" href="#main">Skip to content</a>
 <div id="navbar-mount"></div>
 <noscript><div class="account-bar" role="navigation" aria-label="Account">${render(account)}</div></noscript>
 <main id="main" class="page">
 ${render(crumbs)}
 ${render(o.body)}
-${o.path === '/' ? frame.shipped({ service: 'zone', title: `Recently shipped on ${SITE_NAME}` }) : ''}
+${o.path === '/' && o.shipped !== false ? frame.shipped({ service: 'zone', title: `Recently shipped on ${SITE_NAME}` }) : ''}
 </main>
 <script>
 window.__OV_PAGE = ${JSON.stringify({ navbar: nav, footer }).replace(/</g, '\\u003c')};

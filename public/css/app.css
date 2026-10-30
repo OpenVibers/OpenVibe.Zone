@@ -97,3 +97,44 @@ details input { font: inherit; padding: 7px 9px; border-radius: 8px; border: 1px
 
 /* Touch targets on phones (fleet audit 2026-10-29): the touch-only hit area for this group. Nothing moves with a mouse. */
 @media (pointer: coarse) { .zn-faq summary { min-height: 44px; } }
+
+/* Pick (the owner's short-pages rule, 2026-10-30): on a phone the home's blocks of the same kind are one at a
+   time, picked with a row of chips. Radio inputs and :has(), no script: the chips and the one-block rule live under
+   640 px and only where :has() is understood, so a wider screen, or an older browser, shows every block and no chips. */
+.pick-head { display: none; }
+.pick-row { display: none; }
+.pick-pane { min-width: 0; }
+@supports selector(:has(*)) { @media (max-width: 640px) {
+  .pick-head { display: block; }
+  .pick-head h2 { margin: 0 0 4px; font-size: 1.3rem; }
+  .pick-row { display: flex; gap: 8px; overflow-x: auto; margin: 10px -16px 0; padding: 2px 16px 4px; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .pick-row::-webkit-scrollbar { display: none; }
+  .pick-row input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+  .pick-row label { display: inline-flex; align-items: center; flex: none; min-height: 44px; padding: 0 15px; border-radius: 999px; border: 1px solid var(--border, #1f2d47); color: var(--text-secondary, #96a7c2); font-size: .9rem; font-weight: 650; white-space: nowrap; cursor: pointer; }
+  .pick-row input:checked + label { color: var(--text-primary, #e6edf7); border-color: var(--accent, #3b82f6); background: color-mix(in srgb, var(--accent, #3b82f6) 12%, transparent); }
+  .pick-row input:focus-visible + label { outline: 2px solid var(--accent, #3b82f6); outline-offset: 2px; }
+  .pick-pane { display: none; }
+  /* The chip names the block, so the block's own heading gives way to it. */
+  .zn-pick-sec > h2 { display: none; }
+} }
+
+/* The fold (the owner's short-pages rule): closed on a phone, and where there is room it looks like the section it
+   replaces: a heading and its content, with no card around it. */
+.zn-fold-block { margin: 28px 0; }
+.zn-fold-block > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; padding: 0 16px; cursor: pointer; color: var(--text-primary, #e6edf7); font-weight: 700; list-style: none; border: 1px solid var(--border, #1f2d47); border-radius: 14px; background: var(--bg-card, #131c2e); }
+.zn-fold-block > summary::-webkit-details-marker { display: none; }
+.zn-fold-block > summary h2 { margin: 0; padding: 0; border: 0; font-size: 1.05rem; }
+.zn-fold-block > summary span { color: var(--text-secondary, #96a7c2); font-weight: 600; font-size: .86rem; text-align: right; }
+.zn-fold-block > summary:focus-visible { outline: 2px solid var(--accent, #3b82f6); outline-offset: -2px; border-radius: 14px; }
+.zn-fold-block .sc-sec { margin: 0; }
+.zn-fold-block .sc-sec > h2 { display: none; }
+.zn-fold-block .zn-list, .zn-fold-block .zn-faq { padding: 8px 16px 0; }
+.zn-fold-block .ov-shipped-home { padding: 8px 16px 0; }
+.zn-fold-block .ov-shipped-home h3 { display: none; }
+@media (min-width: 641px) {
+  .zn-fold-block { border: 0; background: none; margin-top: 40px; }
+  .zn-fold-block > summary { display: block; min-height: 0; padding: 0; border: 0; background: none; }
+  .zn-fold-block > summary h2 { margin: 0 0 6px; font-size: 1.3rem; border-bottom: 1px solid var(--border, #1f2d47); padding-bottom: .2em; }
+  .zn-fold-block > summary span { display: none; }
+  .zn-fold-block .zn-list, .zn-fold-block .zn-faq, .zn-fold-block .ov-shipped-home { padding: 0; }
+}
