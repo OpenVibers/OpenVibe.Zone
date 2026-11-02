@@ -45,6 +45,8 @@ const { boot, check, done } = require('./helpers/boot');
         assert.ok(text.includes('ov-shipped-home'), 'what shipped is still in the page');
 
         const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'app.css'), 'utf8');
+
+        assert.match(css, /\.pick-pane \{ min-width: 0; \}/, 'a pane of wide code shrinks with its column (it widened the phone page to 861 px, 2026-11-01)');
         assert.match(css, /\.pick-row \{ display: none; \}/, 'the chips are hidden by default');
     });
     await t.close();
