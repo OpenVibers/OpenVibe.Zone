@@ -102,6 +102,8 @@ details input { font: inherit; padding: 7px 9px; border-radius: 8px; border: 1px
    jump to a pane (the owner's rule, 2026-10-31: never hide content to shorten). A wide screen shows the panes as
    before, with no chips. */
 .pick-head, .pick-row { display: none; }
+/* A pane holds wide code: it shrinks with its column and its <pre> scrolls, instead of widening the page. */
+.pick-pane { min-width: 0; }
 @media (max-width: 640px) {
   .pick-bar { margin-top: 30px; }
   .pick-head { display: block; }
