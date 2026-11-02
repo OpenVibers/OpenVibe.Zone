@@ -25,17 +25,15 @@ const { boot, check, done } = require('./helpers/boot');
 
         // The code samples: one pick block, a chip per sample, the first one picked.
         assert.ok(text.includes('<div class="pick" id="pick-tools">'), 'the code samples are one pick block');
-        assert.match(text, /<div class="pick-row" role="radiogroup" aria-label="The tools that reach a zone">/);
-        const chips = [...text.matchAll(/<input type="radio" name="pick-tools" id="pk-tools-([a-z-]+)" value="\1"( checked)?><label for="pk-tools-\1">([^<]+)<\/label>/g)];
+        assert.match(text, /<nav class="pick-row" aria-label="The tools that reach a zone">/);
+        const chips = [...text.matchAll(/<a class="pick-chip" href="#(?:pp-tools-)?([a-z-]+)">()([^<]+)<\/a>/g)];
         assert.deepStrictEqual(chips.map((m) => m[1]), ['aws-cli', 'rclone', 'node', 'sdk'], 'a chip per sample');
-        assert.deepStrictEqual(chips.filter((m) => m[2]).map((m) => m[1]), ['aws-cli'], 'the first sample is picked');
+        assert.ok(!/type="radio"/.test(text), 'no chip is a radio: nothing is picked, every pane shows');
         assert.strictEqual((text.match(/class="pick-pane"/g) || []).length, chips.length, 'one pane per chip');
         // Every sample stays in the page for the crawlers.
         for (const label of ['AWS CLI', 'rclone', 'Node (AWS SDK v3)', 'Manage zones (openvibe-sdk)']) {
             assert.ok(text.includes(`<figcaption>${label}</figcaption>`), `${label} is in the page`);
         }
-        // The rule that shows the picked sample is written for this page.
-        assert.ok(text.includes('.pick:has(#pk-tools-aws-cli:checked) #pp-tools-aws-cli{display:block}'), 'the picked sample shows');
 
         // The folds: open in the page, closed on a phone, and their content stays in the page.
         for (const id of ['zn-what', 'zn-limits', 'zn-faq', 'zn-shipped']) {
@@ -46,12 +44,8 @@ const { boot, check, done } = require('./helpers/boot');
         assert.ok(text.includes('Which S3 operations work?'), 'the questions are still in the page');
         assert.ok(text.includes('ov-shipped-home'), 'what shipped is still in the page');
 
-        // The CSS guard: the chips are hidden and the blocks all show until 640 px and where :has() is understood.
         const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'app.css'), 'utf8');
         assert.match(css, /\.pick-row \{ display: none; \}/, 'the chips are hidden by default');
-        assert.match(css, /@supports selector\(:has\(\*\)\) \{ @media \(max-width: 640px\) \{/, 'the phone rules are under :has() and 640 px');
-        assert.match(css, /\.pick-row label \{[^}]*min-height: 44px/, 'a chip is a 44 px target');
-        assert.match(css, /\.pick-pane \{ display: none; \}/, 'the blocks are hidden on a phone');
     });
     await t.close();
     done();

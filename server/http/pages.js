@@ -26,7 +26,7 @@ const { asyncRouter } = require('./router');
 const { createDiscoveryRoutes, homeJsonLd } = require('./discovery');
 const { sameOrigin } = require('./principal');
 const { html, raw } = require('../render/html');
-const { pickBlock, pickRules, foldBlock } = require('../render/short');
+const { pickBlock, foldBlock } = require('../render/short');
 const { send } = require('../render/layout');
 const { ZoneError, RESERVED } = require('../zone/zones');
 const { ClientError } = require('../zone/clients');
@@ -123,12 +123,8 @@ const zone = createZoneClient(createClient({ tokenProvider: tokens }));   // a p
 const z = await zone.zones.create('prj_…', { env: 'production', name: 'assets', quota_bytes: 512 * 1024 ** 2 });
 console.log(await zone.zones.usage(z.id));` },
         ].map((c) => ({ id: c.id, label: c.label, html: String(html`<figure><figcaption>${c.label}</figcaption><pre tabindex="0" aria-label="${c.label}"><code${c.lang ? html` class="language-${c.lang}"` : ''}>${c.code}</code></pre></figure>`) }));
-        // The rule that shows the picked sample is written for this page.
-        const rules = [pickRules('tools', codePanes.map((p) => p.id))];
         return {
             agent: true, index: true, cache: me ? null : PUBLIC_CACHE, styles: [showcase.STYLESHEET],
-            // The rules that show the picked block of each pick block live in the page's head.
-            head: `<style>@supports selector(:has(*)){@media (max-width:640px){${rules.join('')}}</style>`,
             shipped: false,
             jsonLd: [...homeJsonLd(config), { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }],
             description: 'Private S3 buckets for your OpenVibe projects: create zones, issue access keys scoped to them, and use the AWS SDKs, rclone or any S3 tool.',
