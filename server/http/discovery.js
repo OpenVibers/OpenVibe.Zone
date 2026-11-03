@@ -60,6 +60,9 @@ function createDiscoveryRoutes(ctx) {
         res.type('text/plain').set('Cache-Control', TEXT).send(seo.llmsTxt({
             name: SITE_NAME,
             summary: DESCRIPTION,
+            // AGT-5: own pages link their Markdown twins (openvibe-shared 4.108.0); ## Optional is what an agent may skip.
+            markdown: true,
+            base: site,
             details: `A zone is an S3 bucket of one OpenVibe project environment (sandbox or production). Zones are made here or `
                 + `with the API; access keys read, write or both and may be limited to some zones; any S3 tool reaches them at `
                 + `${config.media.s3Endpoint} (path style, SigV4). A zone's name is never reused. Every page is server-rendered.`,
@@ -67,18 +70,16 @@ function createDiscoveryRoutes(ctx) {
                 { title: 'Start here', links: [
                     { title: 'OpenVibe.Zone', url: abs('/'), note: 'what a zone is, and the tools that reach one' },
                     { title: 'Using OpenVibe.Zone', url: abs('/docs'), note: 'the S3 endpoint, access keys and the API' },
-                    { title: 'What shipped on OpenVibe.Zone', url: abs('/updates') },
                 ] },
-                { title: 'Machine-readable', links: [
-                    { title: 'Sitemap', url: abs('/sitemap.xml') },
-                    { title: 'Full text for language models', url: abs('/llms-full.txt') },
-                    { title: 'Release metadata (JSON)', url: abs('/release.json') },
-                ] },
-                { title: 'Elsewhere', links: [
-                    { title: 'OpenVibe.Services', url: 'https://openvibe.services', note: 'projects, apps and every resource' },
-                    { title: 'OpenVibe.Media', url: 'https://openvibe.media', note: 'the objects inside every zone' },
-                    { title: 'OpenVibe.Network', url: 'https://openvibe.network', note: 'accounts, apps and grants' },
-                ] },
+            ],
+            optional: [
+                { title: 'What shipped on OpenVibe.Zone', url: abs('/updates') },
+                { title: 'Sitemap', url: abs('/sitemap.xml') },
+                { title: 'Full text for language models', url: abs('/llms-full.txt') },
+                { title: 'Release metadata (JSON)', url: abs('/release.json') },
+                { title: 'OpenVibe.Services', url: 'https://openvibe.services', note: 'projects, apps and every resource' },
+                { title: 'OpenVibe.Media', url: 'https://openvibe.media', note: 'the objects inside every zone' },
+                { title: 'OpenVibe.Network', url: 'https://openvibe.network', note: 'accounts, apps and grants' },
             ],
         }));
     });
