@@ -83,10 +83,16 @@ function createDiscoveryRoutes(ctx) {
         }));
     });
 
-    r.get('/llms-full.txt', (_req, res) => {
-        const pages = publicPages().map((e) => ({ url: e.path, title: PAGE_TEXT[e.path][0], text: PAGE_TEXT[e.path][1] }));
+    r.get('/llms-full.txt', async (_req, res) => {
+        // The guide (/docs) in full, from the page's own builder; the other pages one line each (SEO-33: it was 493
+        // characters in all).
+        let docs = null;
+        try { docs = ctx.publicViews ? await ctx.publicViews.docs() : null; } catch { /* the one-line description stands */ }
+        const pages = publicPages().map((e) => (e.path === '/docs' && docs && docs.body
+            ? { url: e.path, title: PAGE_TEXT[e.path][0], html: String(docs.body) }
+            : { url: e.path, title: PAGE_TEXT[e.path][0], text: PAGE_TEXT[e.path][1] }));
         res.type('text/plain').set('Cache-Control', TEXT).send(seo.llmsFull({
-            site: SITE_NAME, summary: 'Every public page of OpenVibe.Zone, one line each.', base: site, maxBytes: 64 * 1024,
+            site: SITE_NAME, summary: 'Every public page of OpenVibe.Zone, the guide in full.', base: site, maxBytes: 64 * 1024,
             sections: [{ title: 'Pages', pages }],
         }));
     });

@@ -32,6 +32,10 @@ const { boot, check, done } = require('./helpers/boot');
         await check('llms-full.txt lists every public page', async () => {
             const r = await t.get('/llms-full.txt');
             for (const s of ['OpenVibe.Zone home', 'Using OpenVibe.Zone', 'What shipped on OpenVibe.Zone']) assert.ok(r.text.includes(s), s);
+            // SEO-33: the guide in full, as text (it was one line a page, 493 characters).
+            assert.match(r.text, /The S3 endpoint/);
+            assert.ok(r.text.length > 2000, `${r.text.length} characters`);
+            assert.ok(!/<\/?(h1|h2|p|ul|li|code|section)\b[^>]*>/i.test(r.text), 'text, no markup');
         });
     } finally { await t.close(); }
     done();
