@@ -10,6 +10,7 @@ module.exports = {
     site: 'openvibe.zone',
     api: '/api/v1',
     docs: '/docs',
+    openapi: '/openapi.json',
     policy: {
         auth: ['none', 'Network OIDC', 'zone access key (S3 Signature Version 4)'],
     },
