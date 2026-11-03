@@ -27,6 +27,11 @@ const { boot, check, done } = require('./helpers/boot');
             assert.match(r.text, /^# OpenVibe\.Zone/m);
             assert.match(r.text, /https:\/\/s3\.openvibe\.media/);
             assert.match(r.text, /Using OpenVibe\.Zone/);
+            // AGT-5: own pages at their Markdown twins, files as they are, ## Optional last.
+            assert.match(r.text, /\(https?:\/\/[^)]*\/docs\.md\)/);
+            assert.match(r.text, /\(https?:\/\/[^)]*\/index\.md\)/);
+            assert.match(r.text, /\(https?:\/\/[^)]*\/sitemap\.xml\)/);
+            assert.ok(r.text.includes('\n## Optional\n') && r.text.lastIndexOf('\n## ') === r.text.indexOf('\n## Optional\n'), 'Optional is last');
         });
 
         await check('llms-full.txt lists every public page', async () => {
