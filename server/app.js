@@ -171,6 +171,8 @@ async function createApp(opts = {}) {
     // ── Pages ───────────────────────────────────────────────
     app.use(rateLimit({ windowMs: 60_000, limit: Number(process.env.ZONE_RATE_LIMIT_PER_MIN) || 300, standardHeaders: true, legacyHeaders: false }));
     const pageRoutes = createPageRoutes(ctx);
+    // The guide in full for /llms-full.txt (http/discovery.js reads it at request time; SEO-33).
+    ctx.publicViews = pageRoutes.publicViews;
     // The agent layer (openvibe-shared/agent-layer): /.well-known/agent.json and the Markdown twins of the public
     // pages. The pages keep their own routes — a signed-in person's projects and forms are theirs — so only the
     // manifest and twin requests reach this mount; the pages advertise the twin themselves.
