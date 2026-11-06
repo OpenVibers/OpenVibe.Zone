@@ -71,6 +71,9 @@ function createApi(ctx) {
         const row = await zones.byId(req.params.zone);
         if (!row) throw new ZoneError(404, 'zone.unknown', 'no such zone');
         try { await access(req, row.project_id, { write, env: row.env }); } catch (err) {
+            // A bucket shared with this signed-in person opens its console record (never its keys or objects).
+            const subject = !write && req.principal && req.principal.kind === 'user' ? String(req.principal.requester).replace(/^user:/, '') : null;
+            if (subject && ctx.sharing && await ctx.sharing.canView({ subject }, row.id).catch(() => false)) return row;
             // Another project's zone, and a production zone to a sandbox app, do not exist for this caller.
             if (err.code === 'zone.unknown_project' || err.code === 'zone.sandbox_only') throw new ZoneError(404, 'zone.unknown', 'no such zone');
             throw err;

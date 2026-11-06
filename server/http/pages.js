@@ -22,6 +22,7 @@ const ovServe = require('openvibe-shared/serve');
 const frame = require('openvibe-shared/frame');
 const showcase = require('openvibe-shared/showcase');
 const cache = require('openvibe-shared/cache-policy');
+const kit = require('openvibe-shared/kit');
 const { asyncRouter } = require('./router');
 const { createDiscoveryRoutes, homeJsonLd } = require('./discovery');
 const { sameOrigin } = require('./principal');
@@ -244,7 +245,7 @@ ${projects.length ? html`<ul class="zn-cards">${projects.map((p) => html`<li cla
             return html`<tr id="${z.id}"><td><code>${z.name}</code>${z.default ? html` <span class="zn-badge">default</span>` : ''}</td><td>${z.state}</td>
 <td class="zn-n">${u ? `${bytes(u.stored_bytes)} · ${plural(u.objects, 'object', 'objects')}` : '—'}${monthLine(z.id) ? html`<br><span class="zn-muted">${monthLine(z.id)}</span>` : ''}</td>
 <td class="zn-n">${z.quota_bytes ? bytes(z.quota_bytes) : (z.default ? 'environment' : '—')}</td><td>${day(z.created_at)}</td>
-<td>${admin && !z.default && z.state === 'active' ? html`<details><summary>Delete</summary><form method="post" action="/p/${project}/zones/${z.id}/delete">
+<td>${admin && z.state === 'active' ? html`<span class="zn-share">${raw(kit.share({ title: z.name, url: `${config.baseUrl}/p/${project}#${z.id}`, text: `A bucket in ${project}`, kind: 'zone', id: z.id }))}</span> ` : ''}${admin && !z.default && z.state === 'active' ? html`<details><summary>Delete</summary><form method="post" action="/p/${project}/zones/${z.id}/delete">
 <p>This deletes every object in <code>${z.name}</code>, with no undo, and the name can never be used again.</p>
 <label>Type the zone's name to confirm <input name="confirm" required autocomplete="off" pattern="${z.name}"></label>
 <button class="zn-button zn-danger" type="submit">Delete ${z.name}</button></form></details>` : ''}</td></tr>`;
