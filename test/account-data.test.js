@@ -24,7 +24,12 @@ const ev = (id, type, payload) => ({ event_id: id, event_type: type, source: 'ne
     const db = t.ctx.s.db;
     try {
         await check('every table that names a person is covered or exempted with a reason', async () => {
-            const missing = await uncovered(db, { tables: TABLES, exempt: { account_data_events: 'the ledger of requests itself: which export and deletion Zone applied' } });
+            const missing = await uncovered(db, { tables: TABLES, exempt: {
+                account_data_events: 'the ledger of requests itself: which export and deletion Zone applied',
+                share_members: 'openvibe-sdk/share: its subject is jsonb, so the SDK table map cannot name it; extraExport/extraErase cover it',
+                share_access_requests: 'openvibe-sdk/share: jsonb subject, covered by extraExport/extraErase',
+                zone_zones: 'a bucket belongs to its project; its maker is in created_by, which extraErase clears (the bucket stays)',
+            } });
             assert.deepStrictEqual(missing, [], `a table with a person column is neither covered nor exempted: ${missing.join(', ')}`);
         });
 
