@@ -28,7 +28,7 @@ class ZoneError extends Error {
 const fail = (status, code, detail) => { throw new ZoneError(status, code, detail); };
 const iso = (ms) => (ms == null ? null : new Date(Number(ms)).toISOString());
 
-function createZones({ s, clients, config, log = console, metering = null }) {
+function createZones({ s, clients, config, log = console, metering = null, sharing = null }) {
     const { db } = s;
 
     /** The zone.object-zone@1 of a row (usage when given; deletion progress while it is deleting or deleted). */
@@ -125,6 +125,12 @@ function createZones({ s, clients, config, log = console, metering = null }) {
         if (idempotencyKey) {
             await db.exec('INSERT INTO zone_idempotency (caller, idempotency_key, digest, zone_id, created_at) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING',
                 [caller, idempotencyKey, digest, row.id, s.now()]);
+        }
+        // A new bucket is Only me. Its row records the person who made it, so their Share sheet owns it.
+        if (sharing) {
+            const maker = /^user:usr_/.test(String(caller)) ? caller.slice(5) : null;
+            await db.exec('UPDATE zone_zones SET created_by = $2 WHERE id = $1', [row.id, maker]);
+            await sharing.register(maker ? { subject: maker } : null, row.id, 'private');
         }
         return { zone: record(row), repeat: false };
     }

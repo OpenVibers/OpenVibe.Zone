@@ -320,6 +320,21 @@ async function startNetwork({ sandboxAudiences = ['openvibe.events', 'openvibe.m
             const parts = url.pathname.replace(/^\/api\/v1\/projects\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
             return await projectsApi(req, raw, json, u, parts, url.searchParams);
         }
+        if (url.pathname === '/internal/identity/resolve-batch' && req.method === 'POST') {
+            const body = JSON.parse(raw.toString('utf8') || '{}');
+            const results = {};
+            for (const id of body.subject_ids || []) {
+                const u = [...st.users.values()].find((x) => x.subject === id);
+                results[id] = u ? { subject: { type: 'user', id }, username: u.username, display_name: u.display_name, avatar_url: null, banned: false } : null;
+            }
+            return json(200, { results });
+        }
+        if (url.pathname === '/internal/identity/resolve' && req.method === 'GET') {
+            const name = (url.searchParams.get('username') || '').toLowerCase();
+            const u = [...st.users.values()].find((x) => x.username.toLowerCase() === name);
+            return u ? json(200, { subject: { type: 'user', id: u.subject }, username: u.username, display_name: u.display_name, avatar_url: null, banned: false }) : json(404, { error: 'no such person' });
+        }
+        if (url.pathname === '/internal/notifications/push' && req.method === 'POST') return json(200, { sent: true });
         return json(404, { error: 'not found' });
     });
     issuer = srv.url;

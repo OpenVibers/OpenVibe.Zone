@@ -35,6 +35,7 @@ const { createServiceReadiness } = require('./observability');
 const { createCallerLimits } = require('./http/caller-limits');
 const { createClients } = require('./zone/clients');
 const { createZones } = require('./zone/zones');
+const { createSharing, describeRef } = require('./sharing');
 const { assetVersion, send } = require('./render/layout');
 const { html } = require('./render/html');
 
@@ -58,7 +59,9 @@ async function createApp(opts = {}) {
     const principal = createPrincipal({ config, keys });
     const clients = opts.clients || createClients({ config, fetchImpl });
     const usage = createUsage({ s, log });
-    const zones = createZones({ s, clients, config, log, metering: usage });
+    // Sharing (openvibe-sdk/share): a bucket's share row, its people and the one access check for its console page.
+    const sharing = opts.sharing || createSharing({ db: s.db, config, fetchImpl, log });
+    const zones = createZones({ s, clients, config, log, metering: usage, sharing });
     const mediaLimits = opts.mediaLimits || require('./zone/media-limits').createMediaLimits({ config, fetchImpl, log });
     // The account export and deletion (ADR-033, server/account-data.js): what Zone holds about a person, and the
     // erasure of it. The network sender posts Zone's part of an export back to Network with Zone's own token.
@@ -66,7 +69,7 @@ async function createApp(opts = {}) {
     const accountSend = opts.accountSend !== undefined ? opts.accountSend : (config.oauth.clientSecret ? createNetworkSender({
         networkInternalUrl: config.networkInternalUrl, clientId: config.oauth.clientId, clientSecret: config.oauth.clientSecret, fetch: fetchImpl,
     }) : null);
-    const ctx = { config, s, keys, sso, principal, log, clients, zones, usage, mediaLimits, accountData, accountSend };
+    const ctx = { config, s, keys, sso, principal, log, clients, zones, usage, mediaLimits, accountData, accountSend, sharing };
 
     const app = express();
     // GET /openapi.json (SEO-3): this service's public API as OpenAPI 3.1, generated from the contracts
@@ -165,6 +168,18 @@ async function createApp(opts = {}) {
     // public; a first-party service calls over loopback, unproxied, and is counted per caller instead.
     const internal = (req) => !req.headers['x-forwarded-for'] && !req.headers['x-real-ip'] && /^(::1|::ffff:127\.|127\.)/.test(String(req.socket.remoteAddress || ''));
     app.use('/api/v1', rateLimit({ windowMs: 60_000, limit: Number(process.env.ZONE_API_RATE_LIMIT_PER_MIN) || 240, standardHeaders: true, legacyHeaders: false, skip: internal, handler: (req, res) => contracts.http.sendProblem(res, 429, 'rate_limited', { detail: 'too many requests from this address; retry shortly', ctx: req.ov }) }));
+    // ── /api/v1/<kind>/<id>/share — the uniform share API (openvibe-sdk/share) ────
+    {
+        const shareApi = express.Router();
+        shareApi.use(principal.middleware);
+        shareApi.use(sharing.shares.router({
+            service: 'zone',
+            authenticate: (req) => (req.principal && req.principal.kind === 'user' ? { subject: { type: 'user', id: String(req.principal.requester).replace(/^user:/, '') }, staff: false } : null),
+            describe: describeRef(s.db, config),
+        }));
+        const SHARE_PATH = /^\/api\/v1\/(?:shared-with-me$|share\/people$|[^/]+\/[^/]+\/share(?:\/|$))/;
+        app.use((req, res, next) => (SHARE_PATH.test(req.path) ? shareApi(req, res, next) : next()));
+    }
     app.use('/api/v1', createApi(ctx));
     app.use('/api', (req, res) => contracts.http.sendProblem(res, 404, 'route.not_found', { detail: 'No such API route', ctx: req.ov }));
 

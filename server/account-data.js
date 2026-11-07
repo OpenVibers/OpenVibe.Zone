@@ -14,8 +14,30 @@ const { createAccountData, TOPICS } = require('openvibe-sdk/account-data');
 // Zone keeps no table of its own about a person: the telemetry samples are the SDK's own (see above).
 const TABLES = [];
 
+/**
+ * The sharing system's own rows (openvibe-sdk/share): the SDK's table map cannot name a jsonb subject
+ * column, so they are exported and erased here, and the guard knows them by reason.
+ */
+async function extraExport(db, subject) {
+    const owned = await db.many("SELECT * FROM shares WHERE service = $1 AND owner_subject->>'id' = $2", ['zone', subject]);
+    const member = await db.many("SELECT * FROM share_members WHERE service = $1 AND subject->>'id' = $2", ['zone', subject]);
+    const asked = await db.many("SELECT * FROM share_access_requests WHERE service = $1 AND subject->>'id' = $2", ['zone', subject]);
+    return [{ name: 'shares.json', content: { owned, member_of: member, requests: asked } }];
+}
+
+async function extraErase(t, subjects) {
+    for (const subject of subjects) {
+        await t.exec("DELETE FROM share_members WHERE service = $1 AND subject->>'id' = $2", ['zone', subject]);
+        await t.exec("DELETE FROM share_access_requests WHERE service = $1 AND subject->>'id' = $2", ['zone', subject]);
+        await t.exec("DELETE FROM share_transfers WHERE service = $1 AND (from_subject->>'id' = $2 OR to_subject->>'id' = $2)", ['zone', subject]);
+        await t.exec("DELETE FROM shares WHERE service = $1 AND owner_subject->>'id' = $2", ['zone', subject]);
+        // A bucket stays with its project; its maker's id is the only thing about them left on it.
+        await t.exec('UPDATE zone_zones SET created_by = NULL WHERE created_by = $1', [subject]);
+    }
+}
+
 function create({ db, log = console } = {}) {
-    return createAccountData({ db, service: 'zone', tables: TABLES, log });
+    return createAccountData({ db, service: 'zone', tables: TABLES, extraExport, extraErase, log });
 }
 
 module.exports = { create, TABLES, TOPICS };
