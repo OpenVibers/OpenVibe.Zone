@@ -91,7 +91,7 @@ function createPageRoutes(ctx) {
             eyebrow: `${SITE_NAME} · part of OpenVibe`,
             title: 'Private storage zones:',
             accent: 'S3 buckets for your projects.',
-            lede: 'Named zones for each project and environment. The AWS SDKs, rclone and backup tools reach them over S3, with access keys you scope to a zone and quotas you set. Every object is an OpenVibe.Media object, readable through its API too.',
+            lede: 'A zone for each project and environment. The AWS SDKs, rclone and backup tools reach it over S3, with keys scoped to the zone and quotas you set.',
             actions: me
                 ? [{ label: 'Your projects', href: '/projects', primary: true }, { label: 'How to use it', href: '/docs' }]
                 : [{ label: 'Sign in to start', href: '/auth/login?next=%2Fprojects', primary: true }, { label: 'How to use it', href: '/docs' }],
