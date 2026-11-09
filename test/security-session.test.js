@@ -51,6 +51,14 @@ const { signJwt } = require('./helpers/mocks');
         assert.strictEqual(JSON.parse(me.text).user.username, staff.username);
     });
 
+    await check('the navbar receives a verified, uncached Network token only for a signed-in person', async () => {
+        const nav = await s.get('/auth/navbar-token', { as: staff });
+        assert.strictEqual(nav.status, 200);
+        assert.match(JSON.parse(nav.text).token, /^[^.]+\.[^.]+\.[^.]+$/);
+        assert.strictEqual(nav.headers.get('cache-control'), 'private, no-store');
+        assert.strictEqual((await s.get('/auth/navbar-token')).status, 401);
+    });
+
     await check('another site cannot sign a person out; this site can', async () => {
         const cross = await s.get('/auth/logout', { as: staff, headers: { 'sec-fetch-site': 'cross-site' } });
         assert.strictEqual(cross.status, 200, 'a confirm page, not a sign-out');

@@ -204,6 +204,14 @@ function createSso({ config, keys, fetchImpl = globalThis.fetch, now = () => Dat
             return res.json({ user: meOf(claims) });
         });
 
+        // The shared Dock needs a verified Network access token from this HTTP-only session.
+        r.get('/navbar-token', (req, res) => {
+            res.set('Cache-Control', cache.htmlHeaders({ private: true }));
+            const viewer = req.viewer;
+            if (!viewer || viewer.kind !== 'user' || !viewer.token) return res.status(401).json({ error: 'Not signed in' });
+            return res.json({ token: viewer.token });
+        });
+
         // Sign-out stays a same-site action: another site cannot sign a person out.
         const sameOriginRequest = (req) => {
             const site = String(req.get('sec-fetch-site') || '');
