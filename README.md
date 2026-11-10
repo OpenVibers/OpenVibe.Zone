@@ -1,5 +1,8 @@
 # OpenVibe.Zone
 
+**Live site:** https://openvibe.zone · **API docs:** https://openvibe.services · **For AI:** https://openvibe.zone/llms.txt
+**Run it:** `npm ci && npm run dev` (Node 22 or newer) · **Tests:** `npm test`
+
 ## Purpose
 
 Private S3-compatible storage zones for OpenVibe projects, at https://openvibe.zone. The design is ADR-031 in
