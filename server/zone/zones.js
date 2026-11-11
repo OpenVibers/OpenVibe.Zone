@@ -126,11 +126,11 @@ function createZones({ s, clients, config, log = console, metering = null, shari
             await db.exec('INSERT INTO zone_idempotency (caller, idempotency_key, digest, zone_id, created_at) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING',
                 [caller, idempotencyKey, digest, row.id, s.now()]);
         }
-        // A new bucket is Only me. Its row records the person who made it, so their Share sheet owns it.
+        // The maker's console preference applies only to named buckets. S3 access stays project-owned.
         if (sharing) {
             const maker = /^user:usr_/.test(String(caller)) ? caller.slice(5) : null;
             await db.exec('UPDATE zone_zones SET created_by = $2 WHERE id = $1', [row.id, maker]);
-            await sharing.register(maker ? { subject: maker } : null, row.id, 'private');
+            await sharing.register(maker ? { subject: maker } : null, row.id, maker ? await sharing.defaultFor(maker) : 'private');
         }
         return { zone: record(row), repeat: false };
     }

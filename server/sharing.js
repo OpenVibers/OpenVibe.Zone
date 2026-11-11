@@ -132,6 +132,33 @@ function createSharing({ db, config, now = Date.now, fetchImpl = globalThis.fetc
     const sv = (viewer) => shareViewer(viewer);
     const at = (id) => refOf(id);
 
+    async function defaultFor(subject) {
+        const row = await db.maybe('SELECT audience FROM zone_share_defaults WHERE subject = $1', [subject]);
+        return row ? row.audience : 'private';
+    }
+
+    async function saveDefault(subject, audience, { apply = false } = {}) {
+        if (!/^usr_[0-9A-HJKMNP-TV-Z]{26}$/.test(String(subject || '')) || !AUDIENCES.includes(audience)) {
+            throw new ShareError(400, 'share.invalid', 'Choose Specific people or Only me');
+        }
+        await db.exec(`INSERT INTO zone_share_defaults (subject, audience, updated_at) VALUES ($1, $2, now())
+            ON CONFLICT (subject) DO UPDATE SET audience = EXCLUDED.audience, updated_at = EXCLUDED.updated_at`, [subject, audience]);
+        let applied = 0;
+        if (apply) {
+            // A bucket belongs to a project, but its Share sheet belongs to its maker (or transferee).
+            // Never change the project's default buckets or a teammate's named buckets.
+            const rows = await db.many(`SELECT z.id FROM zone_zones z JOIN shares s
+                ON s.service = $1 AND s.kind = $2 AND s.resource_id = z.id
+                WHERE s.owner_subject->>'type' = 'user' AND s.owner_subject->>'id' = $3
+                  AND NOT z.is_default AND z.state NOT IN ('deleting', 'deleted') ORDER BY z.id`, [SERVICE, KIND, subject]);
+            for (const row of rows) {
+                await shares.setAudience(sv({ subject }), at(row.id), audience);
+                applied++;
+            }
+        }
+        return { audience, applied };
+    }
+
     return {
         shares,
         SERVICE,
@@ -139,6 +166,8 @@ function createSharing({ db, config, now = Date.now, fetchImpl = globalThis.fetc
         AUDIENCES,
         refOf,
         shareViewer,
+        defaultFor,
+        saveDefault,
         /** Register a post with the sharing system (inside the post's own transaction). */
         register: async (viewer, id, audience = 'private') => await shares.register(at(id), {
             owner_subject: viewer && viewer.subject ? { type: String(viewer.subject).startsWith('gst_') ? 'guest' : 'user', id: viewer.subject } : { type: 'service', id: SERVICE },

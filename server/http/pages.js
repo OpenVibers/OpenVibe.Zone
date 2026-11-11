@@ -31,6 +31,7 @@ const { pickBlock, foldBlock } = require('../render/short');
 const { send } = require('../render/layout');
 const { ZoneError, RESERVED } = require('../zone/zones');
 const { ClientError } = require('../zone/clients');
+const { ShareError } = require('openvibe-sdk/share');
 
 const SITE_NAME = 'OpenVibe.Zone';
 const PROJECT_RE = /^prj_[0-9A-HJKMNP-TV-Z]{26}$/;
@@ -50,7 +51,7 @@ const plural = (n, one, many) => `${Number(n).toLocaleString('en-US')} ${n === 1
 const day = (iso) => (iso ? String(iso).slice(0, 10) : '—');
 
 function createPageRoutes(ctx) {
-    const { config, clients, zones, usage: metering } = ctx;
+    const { config, clients, zones, sharing, usage: metering } = ctx;
     const r = asyncRouter();
     const form = express.urlencoded({ extended: false, limit: '8kb' });
     const PUBLIC_CACHE = cache.htmlHeaders({ maxAge: 300 });
@@ -217,6 +218,7 @@ ${projects.length ? html`<ul class="zn-cards">${projects.map((p) => html`<li cla
         const p = projects.find((x) => x.id === project);
         if (!p || !role) return page(req, res, { title: 'Not found', body: html`<h1>Not found</h1><p>No such project of yours. <a href="/projects">Your projects</a>.</p>` }, 404);
         const admin = ADMIN.has(role);
+        const defaultAudience = admin ? await sharing.defaultFor(me.subject) : 'private';
         const envs = p.environments && p.environments.length ? p.environments : ['sandbox'];
         for (const env of envs) await zones.ensureDefault(project, env);
         const list = (await zones.list(project, {})).zones;
@@ -282,6 +284,12 @@ ${error ? html`<p class="zn-error" role="alert">${error}</p>` : ''}
 ${secret ? html`<div class="zn-secret" role="alert"><h2>Your new key</h2><p>Copy the secret now: it is shown only once.</p>
 <dl><dt>Access key id</dt><dd><code>${secret.key.id}</code></dd><dt>Secret access key</dt><dd><code>${secret.secret}</code></dd><dt>Endpoint</dt><dd><code>${s3}</code> (path style, region <code>us-east-1</code>)</dd></dl></div>` : ''}
 ${envs.map(envSection)}
+${admin ? html`<section class="zn-section" aria-labelledby="zn-share-default"><h2 id="zn-share-default">New bucket sharing</h2>
+<p>This controls who can open the bucket's console record. Storage access still uses your project's S3 keys. Specific people can be named on each bucket's Share sheet.</p>
+<form class="zn-form" method="post" action="/p/${project}/share-default">
+<label>New buckets <select name="audience"><option value="private"${defaultAudience === 'private' ? raw(' selected') : ''}>Only me</option><option value="people"${defaultAudience === 'people' ? raw(' selected') : ''}>Specific people</option></select></label>
+<label class="zn-check"><input type="checkbox" name="apply_to_all" value="1"> Apply to all my existing named buckets</label>
+<button class="zn-button" type="submit">Save sharing preference</button></form></section>` : ''}
 ${keysSection}
 <p class="zn-muted">Endpoint: <code>${s3}</code>. <a href="/docs">How to use it</a>.</p>`,
             cache: null,
@@ -303,7 +311,7 @@ ${keysSection}
                 const out = await fn(req, me, project);
                 return await projectView(req, res, project, out);
             } catch (err) {
-                if (err instanceof ZoneError || err instanceof ClientError) return await projectView(req, res, project, { error: err.detail || err.message });
+                if (err instanceof ZoneError || err instanceof ClientError || err instanceof ShareError) return await projectView(req, res, project, { error: err.detail || err.message });
                 throw err;
             }
         }];
@@ -317,6 +325,12 @@ ${keysSection}
         if (quotaMb !== null && !(Number.isInteger(quotaMb) && quotaMb >= 1)) throw new ZoneError(400, 'zone.bad_request', 'the quota is a whole number of MB');
         const out = await zones.create(project, { env: b.env, name, ...(quotaMb ? { quota_bytes: quotaMb * 1024 * 1024 } : {}) }, { caller: `user:${me.subject}` });
         return { notice: `Zone ${out.zone.name} is ${out.zone.state === 'active' ? 'ready' : 'being set up'} in ${out.zone.env}.` };
+    }));
+
+    r.post('/p/:project/share-default', ...action(async (req, me) => {
+        const b = req.body || {};
+        const out = await sharing.saveDefault(me.subject, b.audience, { apply: b.apply_to_all === '1' });
+        return { notice: `New buckets: ${out.audience === 'private' ? 'Only me' : 'Specific people'}.${b.apply_to_all === '1' ? ` Updated ${out.applied} existing named buckets.` : ''}` };
     }));
 
     r.post('/p/:project/zones/:zone/delete', ...action(async (req, me, project) => {

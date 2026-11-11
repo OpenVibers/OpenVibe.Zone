@@ -24,6 +24,7 @@ const contracts = require('openvibe-contracts');
 const { asyncRouter } = require('./router');
 const { ZoneError } = require('../zone/zones');
 const { ClientError } = require('../zone/clients');
+const { ShareError } = require('openvibe-sdk/share');
 
 const PROJECT_RE = /^prj_[0-9A-HJKMNP-TV-Z]{26}$/;
 const ZONE_RE = /^zon_[0-9A-HJKMNP-TV-Z]{26}$/;
@@ -38,7 +39,7 @@ function createApi(ctx) {
     const send = (req, res, status, code, detail) => contracts.http.sendProblem(res, status, code, { detail, ctx: req.ov });
     const wrap = (fn) => async (req, res) => {
         try { await fn(req, res); } catch (err) {
-            if (err instanceof ZoneError || err instanceof ClientError) return send(req, res, err.status, err.code, err.detail || err.message);
+            if (err instanceof ZoneError || err instanceof ClientError || err instanceof ShareError) return send(req, res, err.status, err.code, err.detail || err.message);
             throw err;
         }
     };
@@ -82,6 +83,20 @@ function createApi(ctx) {
     }
 
     r.get('/ping', (req, res) => res.json({ ok: true, service: 'zone' }));
+
+    r.get('/share-defaults/zone', principal.requireCapability('zone.zone.read'), wrap(async (req, res) => {
+        if (req.principal.kind !== 'user') return send(req, res, 403, 'share.person_required', 'A person owns this setting');
+        res.json({ audience: await ctx.sharing.defaultFor(req.principal.requester.slice(5)), audiences: ['people', 'private'] });
+    }));
+
+    r.put('/share-defaults/zone', principal.requireCapability('zone.zone.manage'), limits.budget('zone.write'), json, wrap(async (req, res) => {
+        if (req.principal.kind !== 'user') return send(req, res, 403, 'share.person_required', 'A person owns this setting');
+        const body = req.body || {};
+        if (body.apply_to_all !== undefined && typeof body.apply_to_all !== 'boolean') {
+            return send(req, res, 400, 'share.invalid', 'apply_to_all must be a boolean');
+        }
+        res.json(await ctx.sharing.saveDefault(req.principal.requester.slice(5), body.audience, { apply: body.apply_to_all === true }));
+    }));
 
     r.post('/projects/:project/zones', principal.requireCapability('zone.zone.create'), limits.budget('zone.write'), json, wrap(async (req, res) => {
         const body = req.body || {};
