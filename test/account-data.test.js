@@ -29,11 +29,13 @@ const ev = (id, type, payload) => ({ event_id: id, event_type: type, source: 'ne
                 share_members: 'openvibe-sdk/share: its subject is jsonb, so the SDK table map cannot name it; extraExport/extraErase cover it',
                 share_access_requests: 'openvibe-sdk/share: jsonb subject, covered by extraExport/extraErase',
                 zone_zones: 'a bucket belongs to its project; its maker is in created_by, which extraErase clears (the bucket stays)',
+                zone_share_defaults: 'personal sharing preference, covered by extraExport/extraErase',
             } });
             assert.deepStrictEqual(missing, [], `a table with a person column is neither covered nor exempted: ${missing.join(', ')}`);
         });
 
         await check('an export carries the person\'s telemetry samples, and nobody else\'s', async () => {
+            await db.exec("INSERT INTO zone_share_defaults (subject, audience) VALUES ($1, 'people'), ($2, 'private')", [A, B]);
             for (const [subject, name] of [[A, 'ada'], [B, 'bo']]) {
                 await db.exec("INSERT INTO telemetry_samples (at, service, operation, resource, status, latency_ms, subject) VALUES (now(), 'zone', 'http.request', '/zones', '2xx', 12, $1)", [subject]);
             }
@@ -48,6 +50,8 @@ const ev = (id, type, payload) => ({ event_id: id, event_type: type, source: 'ne
             assert.ok(samples, 'telemetry.json is in the part');
             assert.strictEqual(samples.content.length, 1, JSON.stringify(samples.content));
             assert.strictEqual(samples.content[0].resource, '/zones');
+            const defaults = part.body.files.find((f) => f.name === 'share-defaults.json');
+            assert.deepStrictEqual(defaults.content.map((row) => row.subject), [A]);
             assert.ok(!JSON.stringify(part.body).includes(B), 'nobody else\'s rows');
         });
 
@@ -58,6 +62,8 @@ const ev = (id, type, payload) => ({ event_id: id, event_type: type, source: 'ne
             assert.strictEqual(res.json().outcome, 'erased');
             assert.strictEqual(await db.value('SELECT subject FROM telemetry_samples WHERE subject = $1', [A]), null, 'her samples keep no subject');
             assert.strictEqual(await db.value('SELECT subject FROM telemetry_samples WHERE subject = $1', [B]), B, 'Bo stays');
+            assert.strictEqual(await db.value('SELECT subject FROM zone_share_defaults WHERE subject = $1', [A]), null);
+            assert.strictEqual(await db.value('SELECT subject FROM zone_share_defaults WHERE subject = $1', [B]), B);
             const confirmations = t.network.state.accountConfirmations;
             const confirmation = confirmations.find((c) => c.id === DEL);
             assert.ok(confirmation, 'the confirmation was sent');

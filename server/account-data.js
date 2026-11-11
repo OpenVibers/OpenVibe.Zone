@@ -19,14 +19,17 @@ const TABLES = [];
  * column, so they are exported and erased here, and the guard knows them by reason.
  */
 async function extraExport(db, subject) {
+    const defaults = await db.many('SELECT * FROM zone_share_defaults WHERE subject = $1', [subject]);
     const owned = await db.many("SELECT * FROM shares WHERE service = $1 AND owner_subject->>'id' = $2", ['zone', subject]);
     const member = await db.many("SELECT * FROM share_members WHERE service = $1 AND subject->>'id' = $2", ['zone', subject]);
     const asked = await db.many("SELECT * FROM share_access_requests WHERE service = $1 AND subject->>'id' = $2", ['zone', subject]);
-    return [{ name: 'shares.json', content: { owned, member_of: member, requests: asked } }];
+    return [{ name: 'shares.json', content: { owned, member_of: member, requests: asked } },
+        { name: 'share-defaults.json', content: defaults }];
 }
 
 async function extraErase(t, subjects) {
     for (const subject of subjects) {
+        await t.exec('DELETE FROM zone_share_defaults WHERE subject = $1', [subject]);
         await t.exec("DELETE FROM share_members WHERE service = $1 AND subject->>'id' = $2", ['zone', subject]);
         await t.exec("DELETE FROM share_access_requests WHERE service = $1 AND subject->>'id' = $2", ['zone', subject]);
         await t.exec("DELETE FROM share_transfers WHERE service = $1 AND (from_subject->>'id' = $2 OR to_subject->>'id' = $2)", ['zone', subject]);
