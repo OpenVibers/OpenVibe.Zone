@@ -124,7 +124,7 @@ migrations/              the schema
 AGPL-3.0, see LICENSE.
 
 <!-- versions:start -->
-- openvibe-contracts: v0.417.0
+- openvibe-contracts: v0.419.0
 - openvibe-sdk: v0.161.0
 - openvibe-shared: v4.229.0
 <!-- versions:end -->
