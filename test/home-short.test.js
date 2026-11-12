@@ -25,10 +25,10 @@ const { boot, check, done } = require('./helpers/boot');
 
         // The code samples: one pick block, a chip per sample, the first one picked.
         assert.ok(text.includes('<div class="pick" id="pick-tools">'), 'the code samples are one pick block');
-        assert.match(text, /<nav class="pick-row" aria-label="The tools that reach a zone">/);
-        const chips = [...text.matchAll(/<a class="pick-chip" href="#(?:pp-tools-)?([a-z-]+)">()([^<]+)<\/a>/g)];
+        assert.match(text, /<div class=\"ov-parts ov-parts--front\" data-parts=\"\d+\">/, 'its parts are tabs on a phone');
+        const chips = [...text.matchAll(/<label for="ovp-[a-z0-9]+-(?:pp-tools-)?([a-z-]+)">()([^<]+)(?: <span class="ov-parts-n">[^<]*<\/span>)?<\/label>/g)];
         assert.deepStrictEqual(chips.map((m) => m[1]), ['aws-cli', 'rclone', 'node', 'sdk'], 'a chip per sample');
-        assert.ok(!/type="radio"/.test(text), 'no chip is a radio: nothing is picked, every pane shows');
+        assert.ok(/<input type=\"radio\" class=\"ov-parts-r\"[^>]* checked>/.test(text), 'the first part is open on a phone (Shared pick(): tabs, 11-12)');
         assert.strictEqual((text.match(/class="pick-pane"/g) || []).length, chips.length, 'one pane per chip');
         // Every sample stays in the page for the crawlers.
         for (const label of ['AWS CLI', 'rclone', 'Node (AWS SDK v3)', 'Manage zones (openvibe-sdk)']) {
