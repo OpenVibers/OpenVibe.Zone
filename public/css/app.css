@@ -66,7 +66,7 @@ button.sc-btn.sc-primary { border: 0; }
 .zn-table { margin: 8px 0 12px; }
 .zn-section .zn-table { display: block; overflow-x: auto; }
 .zn-n { text-align: right; white-space: nowrap; }
-.zn-badge { font-size: .72rem; padding: 0 7px; border-radius: 999px; border: 1px solid var(--border-light, #2c3d5c); color: var(--text-secondary, #96a7c2); }
+.zn-badge { font-size: .75rem; padding: 0 7px; border-radius: 999px; border: 1px solid var(--border-light, #2c3d5c); color: var(--text-secondary, #96a7c2); }
 .zn-revoked { opacity: .55; }
 .zn-form { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; margin: 10px 0; }
 .zn-form label { display: flex; flex-direction: column; gap: 4px; font-size: .9rem; color: var(--text-secondary, #96a7c2); }
@@ -149,7 +149,7 @@ details input { font: inherit; padding: 7px 9px; border-radius: 8px; border: 1px
     .table-wrap > table:has(thead th:nth-child(3)):has(td[data-label]) tr { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--border, #1f2d47); border-radius: 14px; background: var(--bg-card, var(--bg-secondary, #101828)); }
     .table-wrap > table:has(thead th:nth-child(3)):has(td[data-label]) td { display: block; min-width: 0; padding: 0; border: 0; overflow-wrap: anywhere; }
     .table-wrap > table:has(thead th:nth-child(3)):has(td[data-label]) td:first-child { font-weight: 700; color: var(--text-primary, #e6edf7); }
-    .table-wrap > table:has(thead th:nth-child(3)):has(td[data-label]) td[data-label]:not(:first-child)::before { content: attr(data-label); display: block; margin-bottom: 2px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-muted, #7386a3); }
+    .table-wrap > table:has(thead th:nth-child(3)):has(td[data-label]) td[data-label]:not(:first-child)::before { content: attr(data-label); display: block; margin-bottom: 2px; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-muted, #7386a3); }
     .table-wrap > table:has(thead th:nth-child(3)):has(td[data-label]) td:empty { display: none; }
 }
 /* Design rule 201: the intro is one line on a computer, at most two on a phone. */
